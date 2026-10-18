@@ -1,5 +1,7 @@
 import { createInterface } from "readline";
 
+import { builtins } from "./builtins";
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -9,10 +11,16 @@ const rl = createInterface({
 rl.prompt();
 
 rl.on("line", (line: string) => {
-  const [name] = line.trim().split(/\s+/);
+  const [name, ...args] = line.trim().split(/\s+/);
 
   if (!name) {
-    // nothing goes here
+    rl.prompt();
+    return;
+  }
+
+  const builtin = builtins[name];
+  if (builtin) {
+    builtin(args);
   } else {
     console.error(`${name}: command not found`);
   }
