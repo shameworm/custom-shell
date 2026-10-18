@@ -1,6 +1,8 @@
 import { createInterface } from "readline";
 
 import { builtins } from "./builtins";
+import { findInPath } from "./pathLookup";
+import { spawnSync } from "child_process";
 
 const rl = createInterface({
   input: process.stdin,
@@ -21,6 +23,8 @@ rl.on("line", (line: string) => {
   const builtin = builtins[name];
   if (builtin) {
     builtin(args);
+  } else if (findInPath(name)) {
+    spawnSync(name, args, { stdio: "inherit" });
   } else {
     console.error(`${name}: command not found`);
   }
