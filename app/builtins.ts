@@ -2,6 +2,7 @@ import { changeDirectory, findInPath } from "./pathUtils";
 
 export const builtins: Record<string, (args: string[]) => void> = {
   exit: () => process.exit(0),
+  clear: () => console.clear(),
   echo: (args) => console.log(args.join(" ")),
   pwd: () => console.log(process.cwd()),
   cd: (args) => changeDirectory(args),
