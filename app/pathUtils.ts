@@ -25,7 +25,9 @@ export function changeDirectory(args: string[]): void {
 
   if (!target) return;
 
-  if (fs.existsSync(target)) {
+  const resolvedPath = path.resolve(process.cwd(), target);
+
+  if (resolvedPath && fs.existsSync(target)) {
     process.chdir(target);
   } else {
     console.log(`cd: ${target}: No such file or directory`);
