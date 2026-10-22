@@ -19,3 +19,15 @@ export function findInPath(command: string) {
   }
   return;
 }
+
+export function changeDirectory(args: string[]): void {
+  const target = args[0];
+
+  if (!target) return;
+
+  if (fs.existsSync(target)) {
+    process.chdir(target);
+  } else {
+    console.log(`cd: ${target}: No such file or directory`);
+  }
+}

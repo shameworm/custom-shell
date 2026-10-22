@@ -1,7 +1,7 @@
 import { createInterface } from "readline";
 
 import { builtins } from "./builtins";
-import { findInPath } from "./pathLookup";
+import { findInPath } from "./pathUtils";
 import { spawnSync } from "child_process";
 
 const rl = createInterface({
