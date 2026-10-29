@@ -1,8 +1,9 @@
 import { createInterface } from "readline";
 
 import { builtins } from "./builtins";
-import { findInPath } from "./pathUtils";
+import { findInPath } from "./utils/pathUtils";
 import { spawnSync } from "child_process";
+import { parseArgs } from "./utils/parseArgs";
 
 const rl = createInterface({
   input: process.stdin,
@@ -13,7 +14,7 @@ const rl = createInterface({
 rl.prompt();
 
 rl.on("line", (line: string) => {
-  const [name, ...args] = line.trim().split(/\s+/);
+  const [name, ...args] = parseArgs(line);
 
   if (!name) {
     rl.prompt();
