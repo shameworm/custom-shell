@@ -1,39 +1,66 @@
+function isQuote(char: string): boolean {
+  return char === "'" || char === '"';
+}
+
+function isSpace(char: string): boolean {
+  return /\s/.test(char);
+}
+
+function isEscapable(quote: string, next: string): boolean {
+  return quote === "" || next === '"' || next === "\\";
+}
+
 export function parseArgs(line: string): string[] {
   const args: string[] = [];
 
   let current = "";
   let inToken = false;
-  let inSignle = false;
-  let inDouble = false;
+  let quote = "";
 
-  for (const char of line) {
-    if (inSignle || inDouble) {
-      if (char === "'" && !inDouble) {
-        inSignle = false;
-      } else if (char === '"' && !inSignle) {
-        inDouble = false;
-      } else {
-        current += char;
+  for (let i = 0; i < line.length; i++) {
+    const char = line.charAt(i);
+
+    if (quote === "'") {
+      if (char === "'") quote = "";
+      else current += char;
+      continue;
+    }
+
+    if (char === "\\" && i + 1 < line.length) {
+      const next = line.charAt(i + 1);
+      if (isEscapable(quote, next)) {
+        current += next;
+        inToken = true;
+        i++;
+        continue;
       }
-    } else if (char === "'" && !inDouble) {
-      inSignle = true;
+    }
+
+    if (char === quote) {
+      quote = "";
       inToken = true;
-    } else if (char === '"' && !inSignle) {
-      inDouble = true;
+      continue;
+    }
+
+    if (quote === "" && isQuote(char)) {
+      quote = char;
       inToken = true;
-    } else if (/\s/.test(char)) {
+      continue;
+    }
+
+    if (quote === "" && isSpace(char)) {
       if (inToken) {
         args.push(current);
         current = "";
         inToken = false;
       }
-    } else {
-      current += char;
-      inToken = true;
+      continue;
     }
+
+    current += char;
+    inToken = true;
   }
 
   if (inToken) args.push(current);
-
   return args;
 }
