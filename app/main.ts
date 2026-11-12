@@ -4,6 +4,7 @@ import * as fs from "fs";
 
 import { builtins, type Writer } from "./builtins";
 import { findInPath } from "./utils/pathUtils";
+import { createCompleter } from "./utils/completer";
 import { parseArgs } from "./utils/parseArgs";
 import { parseRedirect, type RedirectTarget } from "./utils/redirect";
 
@@ -11,6 +12,7 @@ const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "$ ",
+  completer: createCompleter(Object.keys(builtins)),
 });
 
 rl.prompt();
