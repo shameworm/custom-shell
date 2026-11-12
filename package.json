@@ -3,6 +3,8 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "license": "MIT",
+  "description": "A POSIX-style interactive shell written in TypeScript on Bun",
   "scripts": {
     "dev": "bun run app/main.ts",
     "test": "bun test"
