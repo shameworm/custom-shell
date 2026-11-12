@@ -2,16 +2,22 @@ import { beforeEach, describe, expect, test } from "bun:test";
 
 import { createCompleter } from "../../app/utils/completer";
 
-let bells = 0;
-const complete = createCompleter(
-  () => ["echo", "exit", "cd", "clear", "echo"],
-  {
+let bells: number;
+let listed: string[][];
+
+function makeCompleter(candidates: string[]) {
+  return createCompleter(() => candidates, {
     bell: () => bells++,
-  },
-);
+    list: (matches) => listed.push(matches),
+  });
+}
+
+let complete: ReturnType<typeof createCompleter>;
 
 beforeEach(() => {
   bells = 0;
+  listed = [];
+  complete = makeCompleter(["echo", "exit", "cd", "clear", "echo"]);
 });
 
 describe("completer", () => {
@@ -20,16 +26,12 @@ describe("completer", () => {
     expect(complete("exi")).toEqual([["exit "], "exi"]);
   });
 
-  test("returns all matches for an ambiguous prefix", () => {
-    expect(complete("e")).toEqual([["echo ", "exit "], "e"]);
-  });
-
   test("rings the bell and leaves input unchanged when nothing matches", () => {
     expect(complete("xyz")).toEqual([[], "xyz"]);
     expect(bells).toBe(1);
   });
 
-  test("does not ring the bell on a match", () => {
+  test("does not ring the bell on a single match", () => {
     complete("ech");
     expect(bells).toBe(0);
   });
@@ -40,5 +42,31 @@ describe("completer", () => {
 
   test("does not complete arguments", () => {
     expect(complete("echo ex")).toEqual([[], "echo ex"]);
+  });
+});
+
+describe("completer with multiple matches", () => {
+  beforeEach(() => {
+    complete = makeCompleter(["xyz_quz", "xyz_bar", "xyz_baz"]);
+  });
+
+  test("first <TAB> rings the bell and leaves input unchanged", () => {
+    expect(complete("xyz_")).toEqual([[], "xyz_"]);
+    expect(bells).toBe(1);
+    expect(listed).toEqual([]);
+  });
+
+  test("second <TAB> lists matches in alphabetical order", () => {
+    complete("xyz_");
+    expect(complete("xyz_")).toEqual([[], "xyz_"]);
+    expect(listed).toEqual([["xyz_bar", "xyz_baz", "xyz_quz"]]);
+    expect(bells).toBe(1);
+  });
+
+  test("changing the input in between resets to ringing the bell", () => {
+    complete("xyz_");
+    complete("xyz_b");
+    expect(bells).toBe(2);
+    expect(listed).toEqual([]);
   });
 });

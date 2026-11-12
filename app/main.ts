@@ -16,6 +16,10 @@ const rl = createInterface({
     (prefix) => [...Object.keys(builtins), ...findExecutablesByPrefix(prefix)],
     {
       bell: () => process.stdout.write("\x07"),
+      list: (matches) => {
+        process.stdout.write("\n" + matches.join("  ") + "\n");
+        rl.prompt(true);
+      },
     },
   ),
 });
