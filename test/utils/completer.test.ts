@@ -65,8 +65,32 @@ describe("completer with multiple matches", () => {
 
   test("changing the input in between resets to ringing the bell", () => {
     complete("xyz_");
-    complete("xyz_b");
+    complete("xyz_ba");
     expect(bells).toBe(2);
     expect(listed).toEqual([]);
+  });
+});
+
+describe("completer longest common prefix", () => {
+  beforeEach(() => {
+    complete = makeCompleter(["xyz_foo_bar_baz", "xyz_foo", "xyz_foo_bar"]);
+  });
+
+  test("extends input to the longest common prefix without a space", () => {
+    expect(complete("xyz_")).toEqual([["xyz_foo"], "xyz_"]);
+    expect(bells).toBe(0);
+  });
+
+  test("completes step by step as the user narrows it down", () => {
+    expect(complete("xyz_foo_")).toEqual([["xyz_foo_bar"], "xyz_foo_"]);
+    expect(complete("xyz_foo_bar_")).toEqual([
+      ["xyz_foo_bar_baz "],
+      "xyz_foo_bar_",
+    ]);
+  });
+
+  test("falls back to bell when the prefix cannot be extended", () => {
+    expect(complete("xyz_foo")).toEqual([[], "xyz_foo"]);
+    expect(bells).toBe(1);
   });
 });
