@@ -1,8 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 
 import { createCompleter } from "../../app/utils/completer";
 
-const complete = createCompleter(["echo", "exit", "cd", "clear"]);
+let bells = 0;
+const complete = createCompleter(["echo", "exit", "cd", "clear"], {
+  bell: () => bells++,
+});
+
+beforeEach(() => {
+  bells = 0;
+});
 
 describe("completer", () => {
   test("completes a unique prefix with a trailing space", () => {
@@ -14,8 +21,14 @@ describe("completer", () => {
     expect(complete("e")).toEqual([["echo ", "exit "], "e"]);
   });
 
-  test("returns no hits when nothing matches", () => {
+  test("rings the bell and leaves input unchanged when nothing matches", () => {
     expect(complete("xyz")).toEqual([[], "xyz"]);
+    expect(bells).toBe(1);
+  });
+
+  test("does not ring the bell on a match", () => {
+    complete("ech");
+    expect(bells).toBe(0);
   });
 
   test("does not complete arguments", () => {

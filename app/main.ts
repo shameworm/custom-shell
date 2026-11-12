@@ -12,7 +12,9 @@ const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "$ ",
-  completer: createCompleter(Object.keys(builtins)),
+  completer: createCompleter(Object.keys(builtins), {
+    bell: () => process.stdout.write("\x07"),
+  }),
 });
 
 rl.prompt();
