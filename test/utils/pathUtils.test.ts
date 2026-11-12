@@ -112,7 +112,7 @@ describe("changeDirectory", () => {
   });
 
   test("logs an error and stays put for a missing path", () => {
-    const log = spyOn(console, "log").mockImplementation(() => {});
+    const log = spyOn(console, "error").mockImplementation(() => {});
 
     changeDirectory(["no-such-dir-xyz"]);
 
@@ -126,7 +126,7 @@ describe("changeDirectory", () => {
   test("logs an error when the target is a file", () => {
     const file = path.join(tmpDir, "file.txt");
     fs.writeFileSync(file, "x");
-    const log = spyOn(console, "log").mockImplementation(() => {});
+    const log = spyOn(console, "error").mockImplementation(() => {});
 
     changeDirectory([file]);
 

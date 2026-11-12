@@ -34,3 +34,20 @@ describe("parseRedirect", () => {
     expect(parseRedirect(["echo", ">"]).args).toEqual(["echo", ">"]);
   });
 });
+
+describe("parseRedirect stderr", () => {
+  test("extracts 2> target", () => {
+    expect(parseRedirect(["cat", "nope", "2>", "err.txt"])).toEqual({
+      args: ["cat", "nope"],
+      stderrFile: "err.txt",
+    });
+  });
+
+  test("handles stdout and stderr redirects together", () => {
+    expect(parseRedirect(["ls", ">", "out.txt", "2>", "err.txt"])).toEqual({
+      args: ["ls"],
+      stdoutFile: "out.txt",
+      stderrFile: "err.txt",
+    });
+  });
+});

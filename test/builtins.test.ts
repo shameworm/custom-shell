@@ -141,3 +141,18 @@ describe("builtins", () => {
     process.chdir(cwd);
   });
 });
+
+describe("builtins stderr writer", () => {
+  test("type writes not-found to the provided err writer", () => {
+    process.env.PATH = tmpDir;
+    const lines: string[] = [];
+    builtins.type!(["nope-not-here"], undefined, (l) => lines.push(l));
+    expect(lines).toEqual(["nope-not-here: not found"]);
+  });
+
+  test("cd writes errors to the provided err writer", () => {
+    const lines: string[] = [];
+    builtins.cd!(["no-such-dir-xyz"], undefined, (l) => lines.push(l));
+    expect(lines).toEqual(["cd: no-such-dir-xyz: No such file or directory"]);
+  });
+});

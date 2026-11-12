@@ -21,7 +21,10 @@ export function findInPath(command: string) {
   return;
 }
 
-export function changeDirectory(args: string[]): void {
+export function changeDirectory(
+  args: string[],
+  err: (line: string) => void = (line) => console.error(line),
+): void {
   const target = args[0];
 
   if (!target) return;
@@ -36,6 +39,6 @@ export function changeDirectory(args: string[]): void {
   if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()) {
     process.chdir(resolvedPath);
   } else {
-    console.log(`cd: ${target}: No such file or directory`);
+    err(`cd: ${target}: No such file or directory`);
   }
 }

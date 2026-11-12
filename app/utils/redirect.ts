@@ -1,22 +1,27 @@
 export interface Redirect {
   args: string[];
   stdoutFile?: string;
+  stderrFile?: string;
 }
 
-const STDOUT_OPERATORS = new Set([">", "1>"]);
+const OPERATORS: Record<string, "stdoutFile" | "stderrFile"> = {
+  ">": "stdoutFile",
+  "1>": "stdoutFile",
+  "2>": "stderrFile",
+};
 
 export function parseRedirect(tokens: string[]): Redirect {
-  const args: string[] = [];
-  let stdoutFile: string | undefined;
+  const result: Redirect = { args: [] };
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
-    if (STDOUT_OPERATORS.has(token) && i + 1 < tokens.length) {
-      stdoutFile = tokens[++i];
+    const target = OPERATORS[token];
+    if (target && i + 1 < tokens.length) {
+      result[target] = tokens[++i];
       continue;
     }
-    args.push(token);
+    result.args.push(token);
   }
 
-  return { args, stdoutFile };
+  return result;
 }

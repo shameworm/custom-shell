@@ -16,7 +16,11 @@ const rl = createInterface({
 rl.prompt();
 
 rl.on("line", (line: string) => {
-  const { args: tokens, stdoutFile } = parseRedirect(parseArgs(line));
+  const {
+    args: tokens,
+    stdoutFile,
+    stderrFile,
+  } = parseRedirect(parseArgs(line));
   const [name, ...args] = tokens;
 
   if (!name) {
@@ -24,24 +28,29 @@ rl.on("line", (line: string) => {
     return;
   }
 
-  // Create/truncate the target file up front, like a real shell does.
-  const fd = stdoutFile !== undefined ? fs.openSync(stdoutFile, "w") : undefined;
+  // Create/truncate the target files up front, like a real shell does.
+  const outFd =
+    stdoutFile !== undefined ? fs.openSync(stdoutFile, "w") : undefined;
+  const errFd =
+    stderrFile !== undefined ? fs.openSync(stderrFile, "w") : undefined;
+  const toFd = (fd: number | undefined): Writer | undefined =>
+    fd !== undefined ? (text) => fs.writeSync(fd, text + "\n") : undefined;
+  const err: Writer = toFd(errFd) ?? ((text) => console.error(text));
 
   try {
     const builtin = builtins[name];
     if (builtin) {
-      const out: Writer | undefined =
-        fd !== undefined ? (text) => fs.writeSync(fd, text + "\n") : undefined;
-      builtin(args, out);
+      builtin(args, toFd(outFd), err);
     } else if (findInPath(name)) {
       spawnSync(name, args, {
-        stdio: ["inherit", fd ?? "inherit", "inherit"],
+        stdio: ["inherit", outFd ?? "inherit", errFd ?? "inherit"],
       });
     } else {
-      console.error(`${name}: command not found`);
+      err(`${name}: command not found`);
     }
   } finally {
-    if (fd !== undefined) fs.closeSync(fd);
+    if (outFd !== undefined) fs.closeSync(outFd);
+    if (errFd !== undefined) fs.closeSync(errFd);
   }
 
   rl.prompt();
