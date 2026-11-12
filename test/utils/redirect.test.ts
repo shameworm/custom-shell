@@ -55,6 +55,13 @@ describe("parseRedirect stderr", () => {
     });
   });
 
+  test("extracts 2>> target in append mode", () => {
+    expect(parseRedirect(["cat", "nope", "2>>", "err.txt"])).toEqual({
+      args: ["cat", "nope"],
+      stderr: { file: "err.txt", append: true },
+    });
+  });
+
   test("handles stdout and stderr redirects together", () => {
     expect(parseRedirect(["ls", ">>", "out.txt", "2>", "err.txt"])).toEqual({
       args: ["ls"],

@@ -18,6 +18,7 @@ const OPERATORS: Record<
   ">>": { stream: "stdout", append: true },
   "1>>": { stream: "stdout", append: true },
   "2>": { stream: "stderr", append: false },
+  "2>>": { stream: "stderr", append: true },
 };
 
 export function parseRedirect(tokens: string[]): Redirect {
