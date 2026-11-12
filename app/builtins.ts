@@ -1,26 +1,31 @@
 import { changeDirectory, findInPath } from "./utils/pathUtils";
 
-export const builtins: Record<string, (args: string[]) => void> = {
-  exit: () => process.exit(0),
-  clear: () => console.clear(),
-  echo: (args) => console.log(args.join(" ")),
-  pwd: () => console.log(process.cwd()),
-  cd: (args) => changeDirectory(args),
-  type: ([target]) => {
-    if (!target) {
-      return;
-    }
+export type Writer = (line: string) => void;
 
-    if (target in builtins) {
-      console.log(`${target} is shell builtin command`);
-      return;
-    }
+const defaultOut: Writer = (line) => console.log(line);
 
-    const execPath = findInPath(target);
-    if (execPath) {
-      console.log(`${target} is ${execPath}`);
-    } else {
-      console.error(`${target}: not found`);
-    }
-  },
-};
+export const builtins: Record<string, (args: string[], out?: Writer) => void> =
+  {
+    exit: () => process.exit(0),
+    clear: () => console.clear(),
+    echo: (args, out = defaultOut) => out(args.join(" ")),
+    pwd: (_args, out = defaultOut) => out(process.cwd()),
+    cd: (args) => changeDirectory(args),
+    type: ([target], out = defaultOut) => {
+      if (!target) {
+        return;
+      }
+
+      if (target in builtins) {
+        out(`${target} is shell builtin command`);
+        return;
+      }
+
+      const execPath = findInPath(target);
+      if (execPath) {
+        out(`${target} is ${execPath}`);
+      } else {
+        console.error(`${target}: not found`);
+      }
+    },
+  };
