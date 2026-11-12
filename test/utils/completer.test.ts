@@ -3,9 +3,12 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { createCompleter } from "../../app/utils/completer";
 
 let bells = 0;
-const complete = createCompleter(["echo", "exit", "cd", "clear"], {
-  bell: () => bells++,
-});
+const complete = createCompleter(
+  () => ["echo", "exit", "cd", "clear", "echo"],
+  {
+    bell: () => bells++,
+  },
+);
 
 beforeEach(() => {
   bells = 0;
@@ -29,6 +32,10 @@ describe("completer", () => {
   test("does not ring the bell on a match", () => {
     complete("ech");
     expect(bells).toBe(0);
+  });
+
+  test("dedupes candidates that appear more than once", () => {
+    expect(complete("ech")).toEqual([["echo "], "ech"]);
   });
 
   test("does not complete arguments", () => {

@@ -3,7 +3,7 @@ import { spawnSync } from "child_process";
 import * as fs from "fs";
 
 import { builtins, type Writer } from "./builtins";
-import { findInPath } from "./utils/pathUtils";
+import { findExecutablesByPrefix, findInPath } from "./utils/pathUtils";
 import { createCompleter } from "./utils/completer";
 import { parseArgs } from "./utils/parseArgs";
 import { parseRedirect, type RedirectTarget } from "./utils/redirect";
@@ -12,9 +12,12 @@ const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "$ ",
-  completer: createCompleter(Object.keys(builtins), {
-    bell: () => process.stdout.write("\x07"),
-  }),
+  completer: createCompleter(
+    (prefix) => [...Object.keys(builtins), ...findExecutablesByPrefix(prefix)],
+    {
+      bell: () => process.stdout.write("\x07"),
+    },
+  ),
 });
 
 rl.prompt();

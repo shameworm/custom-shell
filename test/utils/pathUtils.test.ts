@@ -3,7 +3,11 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { changeDirectory, findInPath } from "../../app/utils/pathUtils";
+import {
+  changeDirectory,
+  findExecutablesByPrefix,
+  findInPath,
+} from "../../app/utils/pathUtils";
 
 let tmpDir: string;
 let originalPath: string | undefined;
@@ -133,5 +137,40 @@ describe("changeDirectory", () => {
     expect(process.cwd()).toBe(originalCwd);
     expect(log).toHaveBeenCalledWith(`cd: ${file}: No such file or directory`);
     log.mockRestore();
+  });
+});
+
+describe("findExecutablesByPrefix", () => {
+  test("returns executables whose name starts with the prefix", () => {
+    makeExecutable("custom_executable");
+    makeExecutable("custom_other");
+    makeExecutable("unrelated");
+    process.env.PATH = tmpDir;
+
+    expect(findExecutablesByPrefix("custom").sort()).toEqual([
+      "custom_executable",
+      "custom_other",
+    ]);
+  });
+
+  test("skips non-executable files and missing directories", () => {
+    fs.writeFileSync(path.join(tmpDir, "custom_plain"), "x");
+    makeExecutable("custom_exec");
+    process.env.PATH = ["/no/such/dir", tmpDir].join(path.delimiter);
+
+    expect(findExecutablesByPrefix("custom")).toEqual(["custom_exec"]);
+  });
+
+  test("dedupes names found in several PATH directories", () => {
+    makeExecutable("dupcmd");
+    const otherDir = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "shell-test-")),
+    );
+    fs.writeFileSync(path.join(otherDir, "dupcmd"), "#!/bin/sh\n");
+    fs.chmodSync(path.join(otherDir, "dupcmd"), 0o755);
+    process.env.PATH = [tmpDir, otherDir].join(path.delimiter);
+
+    expect(findExecutablesByPrefix("dupcmd")).toEqual(["dupcmd"]);
+    fs.rmSync(otherDir, { recursive: true, force: true });
   });
 });

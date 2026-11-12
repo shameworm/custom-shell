@@ -42,3 +42,29 @@ export function changeDirectory(
     err(`cd: ${target}: No such file or directory`);
   }
 }
+
+export function findExecutablesByPrefix(prefix: string): string[] {
+  const found = new Set<string>();
+
+  for (const dir of (process.env.PATH || "").split(path.delimiter)) {
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
+
+    for (const name of entries) {
+      if (!name.startsWith(prefix) || found.has(name)) continue;
+      const fullPath = path.join(dir, name);
+      try {
+        fs.accessSync(fullPath, fs.constants.X_OK);
+        if (fs.statSync(fullPath).isFile()) found.add(name);
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return [...found];
+}
