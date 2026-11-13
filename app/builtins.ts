@@ -1,4 +1,5 @@
 import { complete } from "./complete";
+import { history } from "./history";
 import { jobTable } from "./jobs";
 import { changeDirectory, findInPath } from "./utils/pathUtils";
 
@@ -18,8 +19,7 @@ export const builtins: Record<string, Builtin> = {
   complete: (args, out = defaultOut, err = defaultErr) =>
     complete(args, out, err),
   jobs: (_args, out = defaultOut) => jobTable.report().forEach(out),
-  // Lists previously run commands; implemented once commands are recorded.
-  history: () => {},
+  history: (_args, out = defaultOut) => history.format().forEach(out),
   type: ([target], out = defaultOut, err = defaultErr) => {
     if (!target) {
       return;
