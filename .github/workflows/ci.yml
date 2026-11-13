@@ -25,8 +25,8 @@ jobs:
       - run: bun test
 
   install-script:
-    # Runs install.sh against the latest release and starts the installed
-    # binary, so the script and the published binaries are both checked.
+    # Runs install.sh for this commit on a machine without Bun, so it also
+    # installs Bun, then builds the shell and starts the installed binary.
     name: Install script (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -39,7 +39,10 @@ jobs:
         if: runner.os == 'Linux'
         run: shellcheck install.sh
       - name: Install
-        run: INSTALL_DIR="$RUNNER_TEMP/bin" sh install.sh
+        env:
+          INSTALL_DIR: ${{ runner.temp }}/bin
+          REF: ${{ github.sha }}
+        run: sh install.sh
       - name: Run the installed shell
         run: |
           out="$(printf 'echo installed && type cd\n' | "$RUNNER_TEMP/bin/custom-shell")"

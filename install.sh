@@ -1,20 +1,22 @@
 #!/bin/sh
-# Installs custom-shell from GitHub Releases:
+# Builds and installs custom-shell from source:
 #
 #   curl -fsSL https://raw.githubusercontent.com/shameworm/custom-shell/main/install.sh | sh
 #
+# It downloads the source, compiles a standalone binary with Bun (installing
+# Bun first if it's missing), and puts it in ~/.local/bin. The binary is
+# built on this machine, so macOS runs it without any "can't verify the
+# developer" prompt, and no prebuilt release is needed.
+#
 # Options, as environment variables:
 #   INSTALL_DIR  where to put the binary (default: ~/.local/bin)
-#   VERSION      a release tag such as v1.0.0 (default: the latest release)
-#
-# Downloading with curl doesn't mark the file as quarantined, so macOS runs
-# it without the "can't verify the developer" prompt a browser download gets.
+#   REF          the git branch, tag or commit to build (default: main)
 
 set -eu
 
 REPO="shameworm/custom-shell"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
-VERSION="${VERSION:-latest}"
+REF="${REF:-main}"
 
 fail() {
   echo "install.sh: $*" >&2
@@ -22,50 +24,40 @@ fail() {
 }
 
 case "$(uname -s)" in
-  Darwin) os=darwin ;;
-  Linux) os=linux ;;
+  Darwin | Linux) ;;
   *) fail "unsupported system: $(uname -s) (macOS and Linux are supported)" ;;
 esac
 
-case "$(uname -m)" in
-  arm64 | aarch64) arch=arm64 ;;
-  x86_64 | amd64) arch=x64 ;;
-  *) fail "unsupported CPU: $(uname -m) (x64 and arm64 are supported)" ;;
-esac
-
-# An x64 shell on Apple Silicon (under Rosetta) still gets the native build.
-if [ "$os" = darwin ] && [ "$arch" = x64 ] &&
-  [ "$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)" = 1 ]; then
-  arch=arm64
-fi
-
-asset="custom-shell-$os-$arch.tar.gz"
-if [ "$VERSION" = latest ]; then
-  base="https://github.com/$REPO/releases/latest/download"
+# Use Bun from PATH, or from its default install location, or install it
+# with Bun's official installer (into ~/.bun).
+if command -v bun >/dev/null 2>&1; then
+  BUN="$(command -v bun)"
+elif [ -x "$HOME/.bun/bin/bun" ]; then
+  BUN="$HOME/.bun/bin/bun"
 else
-  base="https://github.com/$REPO/releases/download/$VERSION"
+  echo "Bun is needed to build custom-shell; installing it (https://bun.sh)..."
+  curl -fsSL https://bun.sh/install | bash >/dev/null ||
+    fail "couldn't install Bun; see https://bun.sh for manual installation"
+  BUN="$HOME/.bun/bin/bun"
+  [ -x "$BUN" ] || fail "Bun was installed but $BUN wasn't found"
 fi
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
-echo "Downloading $asset ($VERSION)..."
-curl -fsSL "$base/$asset" -o "$tmp/$asset" ||
-  fail "couldn't download $base/$asset"
-curl -fsSL "$base/SHA256SUMS" -o "$tmp/SHA256SUMS" ||
-  fail "couldn't download $base/SHA256SUMS"
+echo "Downloading custom-shell ($REF)..."
+curl -fsSL "https://github.com/$REPO/archive/$REF.tar.gz" -o "$tmp/source.tar.gz" ||
+  fail "couldn't download the source for '$REF'"
+mkdir "$tmp/source"
+tar -xzf "$tmp/source.tar.gz" -C "$tmp/source" --strip-components 1
 
-# Check the archive against the release's published checksum.
-expected="$(grep " $asset\$" "$tmp/SHA256SUMS" | cut -d' ' -f1)"
-[ -n "$expected" ] || fail "$asset is not listed in SHA256SUMS"
-if command -v sha256sum >/dev/null 2>&1; then
-  actual="$(sha256sum "$tmp/$asset" | cut -d' ' -f1)"
-else
-  actual="$(shasum -a 256 "$tmp/$asset" | cut -d' ' -f1)"
-fi
-[ "$actual" = "$expected" ] || fail "checksum mismatch for $asset"
+echo "Building with Bun $("$BUN" --version)..."
+# Built inside the temporary directory, so any files the compiler leaves
+# behind are removed with it.
+(cd "$tmp/source" &&
+  "$BUN" build --compile --minify app/main.ts --outfile "$tmp/custom-shell" >/dev/null) ||
+  fail "the build failed"
 
-tar -xzf "$tmp/$asset" -C "$tmp"
 mkdir -p "$INSTALL_DIR"
 mv "$tmp/custom-shell" "$INSTALL_DIR/custom-shell"
 chmod +x "$INSTALL_DIR/custom-shell"

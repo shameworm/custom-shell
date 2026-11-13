@@ -16,15 +16,16 @@ It runs builtins and external programs from your `PATH`, and handles:
 
 ## Install
 
-On macOS or Linux (x64 or arm64):
+On macOS or Linux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/shameworm/custom-shell/main/install.sh | sh
 ```
 
-This downloads the latest release's standalone binary, checks it against the release's SHA-256 checksums, and installs it to `~/.local/bin`. Set `INSTALL_DIR` to install elsewhere, or `VERSION=v1.0.0` for a specific release. Nothing else (not even Bun) is needed. Because curl doesn't quarantine downloads, macOS runs it without the "can't verify the developer" prompt.
+The script downloads the source, compiles a standalone binary with [Bun](https://bun.sh) (installing Bun into `~/.bun` first if you don't have it), and puts it in `~/.local/bin`. Because the binary is built on your machine, macOS runs it without any "can't verify the developer" prompt.
 
-You can also download an archive from the [latest release](https://github.com/shameworm/custom-shell/releases/latest) yourself. A browser marks it as quarantined, and since the binary isn't notarized by Apple, macOS will ask before running it. Allow it once with `xattr -d com.apple.quarantine custom-shell`, or with **Open Anyway** in System Settings → Privacy & Security.
+- Set `INSTALL_DIR` to install somewhere else.
+- Set `REF` to build a specific branch, tag or commit.
 
 Or run it from source with Bun (see [Getting started](#getting-started)).
 
@@ -285,9 +286,9 @@ bun run build      # compile a standalone binary to dist/custom-shell
 
 The demo GIF is recorded with [VHS](https://github.com/charmbracelet/vhs) from [`docs/demo.tape`](docs/demo.tape): run `vhs docs/demo.tape`.
 
-### Releases
+### CI
 
-CI runs the type checker and tests on Linux and macOS for every push and pull request. Pushing a tag such as `v1.0.0` builds the binaries for all four platforms (the macOS ones ad-hoc signed) and publishes them, with SHA-256 checksums, as a GitHub release. CI also runs `install.sh` against the latest release on Linux and macOS.
+CI type-checks and runs the tests on Linux and macOS for every push and pull request. It also runs `install.sh` for the same commit on machines without Bun, then starts the installed shell.
 
 ## Project structure
 
