@@ -1,4 +1,5 @@
 import { complete } from "./complete";
+import { jobTable } from "./jobs";
 import { changeDirectory, findInPath } from "./utils/pathUtils";
 
 export type Writer = (line: string) => void;
@@ -16,8 +17,7 @@ export const builtins: Record<string, Builtin> = {
   cd: (args, _out, err = defaultErr) => changeDirectory(args, err),
   complete: (args, out = defaultOut, err = defaultErr) =>
     complete(args, out, err),
-  // Lists background jobs; implemented once jobs are tracked.
-  jobs: () => {},
+  jobs: (_args, out = defaultOut) => jobTable.report().forEach(out),
   type: ([target], out = defaultOut, err = defaultErr) => {
     if (!target) {
       return;

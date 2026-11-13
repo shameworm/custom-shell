@@ -4,6 +4,7 @@ export interface Job {
   pid: number;
   /** The command as typed, without the trailing &. */
   command: string;
+  status: "Running";
 }
 
 export class JobTable {
@@ -11,7 +12,7 @@ export class JobTable {
   private nextId = 1;
 
   add(pid: number, command: string): Job {
-    const job = { id: this.nextId++, pid, command };
+    const job: Job = { id: this.nextId++, pid, command, status: "Running" };
     this.jobs.push(job);
     return job;
   }
@@ -19,6 +20,19 @@ export class JobTable {
   list(): readonly Job[] {
     return this.jobs;
   }
+
+  // The `jobs` builtin listing, oldest job first. The most recent job is
+  // marked with +.
+  report(): string[] {
+    return this.jobs.map((job, index) =>
+      formatJob(job, index === this.jobs.length - 1 ? "+" : " "),
+    );
+  }
+}
+
+// One line of `jobs` output, e.g. "[1]+  Running                 sleep 10 &".
+export function formatJob(job: Job, marker: string): string {
+  return `[${job.id}]${marker}  ${job.status.padEnd(24)}${job.command} &`;
 }
 
 /** The shell's background jobs. */
