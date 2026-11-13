@@ -231,6 +231,13 @@ When you press <kbd>Tab</kbd> on an argument of a registered command, the script
 
 Each line it prints is a candidate, and the usual rules apply: one candidate completes with a trailing space, several complete to their common prefix or are listed on a second <kbd>Tab</kbd>, and no output rings the bell. A script that can't be started, or runs for more than 5 seconds, gives no candidates.
 
+### Ctrl-C
+
+As in bash:
+- **At the prompt:** <kbd>Ctrl</kbd>+<kbd>C</kbd> discards the line you were typing and gives you a fresh prompt.
+- **While a command is running:** it stops that command (all of a pipeline), and the shell carries on.
+- **Background jobs:** they aren't affected.
+
 ## Getting started
 
 Requires [Bun](https://bun.com) 1.3 or later.
