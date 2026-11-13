@@ -13,7 +13,7 @@ import {
   findPathCompletions,
 } from "./utils/pathUtils";
 import { createCompleter } from "./utils/completer";
-import { parseArgs } from "./utils/parseArgs";
+import { ExpansionError, parseArgs } from "./utils/parseArgs";
 import { parseRedirect, type RedirectTarget } from "./utils/redirect";
 import { shellVariables } from "./variables";
 
@@ -77,7 +77,15 @@ rl.on("line", (line: string) => {
   // Recorded before running, so `history` lists itself.
   history.add(line);
 
-  const tokens = parseArgs(line, (name) => shellVariables.get(name));
+  let tokens: string[];
+  try {
+    tokens = parseArgs(line, (name) => shellVariables.get(name));
+  } catch (error) {
+    if (!(error instanceof ExpansionError)) throw error;
+    console.error(error.message);
+    prompt();
+    return;
+  }
   // A trailing & runs the command in the background.
   const background = tokens.at(-1) === "&";
   if (background) tokens.pop();

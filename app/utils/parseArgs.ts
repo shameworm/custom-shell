@@ -15,12 +15,28 @@ function isEscapable(quote: string, next: string): boolean {
 /** Looks up a variable's value; undefined when it isn't set. */
 export type VariableLookup = (name: string) => string | undefined;
 
-// A $NAME reference starting at `start` (the $): the variable name and the
-// index just past the reference, or undefined if no name follows the $.
+/** Thrown for a malformed ${...}; the message is what bash prints. */
+export class ExpansionError extends Error {}
+
+// A $NAME or ${NAME} reference starting at `start` (the $): the variable
+// name and the index just past the reference, or undefined if no name
+// follows a bare $. Throws ExpansionError for ${...} without a valid name
+// or a closing brace.
 function readReference(
   line: string,
   start: number,
 ): { name: string; end: number } | undefined {
+  if (line.charAt(start + 1) === "{") {
+    const close = line.indexOf("}", start + 2);
+    const name = close === -1 ? "" : line.slice(start + 2, close);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      const text =
+        close === -1 ? line.slice(start) : line.slice(start, close + 1);
+      throw new ExpansionError(`${text}: bad substitution`);
+    }
+    return { name, end: close + 1 };
+  }
+
   const match = /^[A-Za-z_][A-Za-z0-9_]*/.exec(line.slice(start + 1));
   return match
     ? { name: match[0], end: start + 1 + match[0].length }
@@ -28,8 +44,8 @@ function readReference(
 }
 
 // Splits a command line into words, handling quotes, backslash escapes and
-// $NAME expansion. Unset variables expand to nothing. An expansion inside
-// double quotes stays part of one word; an unquoted one is split on
+// $NAME / ${NAME} expansion. Unset variables expand to nothing. An expansion
+// inside double quotes stays part of one word; an unquoted one is split on
 // whitespace, and adds no word at all if it's empty.
 export function parseArgs(
   line: string,
