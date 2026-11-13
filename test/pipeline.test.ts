@@ -30,19 +30,26 @@ function fixture(name: string, content: string): string {
 }
 
 describe("splitPipeline", () => {
+  const split = (line: string) =>
+    splitPipeline(parseArgs(line)).map((stage) => stage.map((t) => t.text));
+
   test("splits tokens at each |", () => {
-    expect(splitPipeline(["cat", "f", "|", "wc", "-l"])).toEqual([
+    expect(split("cat f | wc -l")).toEqual([
       ["cat", "f"],
       ["wc", "-l"],
     ]);
   });
 
   test("returns a single stage when there is no |", () => {
-    expect(splitPipeline(["ls"])).toEqual([["ls"]]);
+    expect(split("ls")).toEqual([["ls"]]);
   });
 
   test("keeps empty stages so they can be reported", () => {
-    expect(splitPipeline(["ls", "|"])).toEqual([["ls"], []]);
+    expect(split("ls |")).toEqual([["ls"], []]);
+  });
+
+  test("a quoted | does not split", () => {
+    expect(split("echo '|' x")).toEqual([["echo", "|", "x"]]);
   });
 });
 
@@ -72,7 +79,7 @@ describe("runPipeline with two external commands", () => {
 
   test("reports an empty stage as a syntax error", async () => {
     const error = spyOn(console, "error").mockImplementation(() => {});
-    await runPipeline([["ls"], []]);
+    await runPipeline(splitPipeline(parseArgs("ls |")));
     expect(error).toHaveBeenCalledWith(
       "syntax error near unexpected token `|'",
     );
@@ -127,5 +134,22 @@ describe("runPipeline with three or more stages", () => {
 
   test("ends a long chain whose last stage exits early", async () => {
     expect(await run("yes | cat | cat | head -n 1")).toBe("y\n");
+  });
+});
+
+describe("runPipeline syntax errors", () => {
+  test("a redirect with no file is reported before anything runs", async () => {
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    const marker = path.join(tmpDir, "should-not-exist");
+    await runPipeline(splitPipeline(parseArgs(`touch ${marker} | wc >`)));
+    expect(error).toHaveBeenCalledWith(
+      "syntax error near unexpected token `newline'",
+    );
+    expect(fs.existsSync(marker)).toBe(false);
+    error.mockRestore();
+  });
+
+  test("works without spaces around |", async () => {
+    expect((await run("echo a|tr a b")).trim()).toBe("b");
   });
 });
