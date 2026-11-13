@@ -131,4 +131,9 @@ describe("runCompleter", () => {
     completionSpecs.set("docker", path.join(tmpDir, "missing"));
     expect(runCompleter(context)).toEqual([]);
   });
+
+  test("returns no candidates when the script prints nothing", () => {
+    completionSpecs.set("docker", script("c", "exit 0"));
+    expect(runCompleter(context)).toEqual([]);
+  });
 });
