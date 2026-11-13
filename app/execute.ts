@@ -66,7 +66,7 @@ export function runCommand(
       return NOT_FOUND;
     }
     if (background) {
-      startJob(name, args, jobText, [outFd, errFd], err);
+      startJob(name, args, jobText, [outFd, errFd]);
       return 0;
     }
     const result: SpawnSyncReturns<Buffer> = spawnSync(name, args, {
@@ -79,21 +79,24 @@ export function runCommand(
   }
 }
 
-// Starts an external command without waiting for it, records it as a job and
-// reports its job number and pid. The job writes to the shell's terminal
-// unless its output is redirected. It gets no stdin, so it can't compete
-// with the prompt for keyboard input.
-function startJob(
-  name: string,
+// Starts a program without waiting for it, records it as a job named
+// `command` and reports its job number and pid. The job writes to the
+// shell's terminal unless its output is redirected. It gets no stdin, so
+// it can't compete with the prompt for keyboard input.
+export function startJob(
+  file: string,
   args: string[],
   command: string,
-  [outFd, errFd]: [number | undefined, number | undefined],
-  err: Writer,
+  [outFd, errFd]: [number | undefined, number | undefined] = [
+    undefined,
+    undefined,
+  ],
 ) {
-  const child = spawn(name, args, {
+  const child = spawn(file, args, {
     stdio: ["ignore", outFd ?? "inherit", errFd ?? "inherit"],
   });
-  child.on("error", (error) => err(`${name}: ${error.message}`));
+  // Reported on the shell's stderr: by now the redirect files are closed.
+  child.on("error", (error) => console.error(`${file}: ${error.message}`));
   if (child.pid === undefined) return;
 
   const job = jobTable.add(child.pid, command);

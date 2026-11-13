@@ -187,4 +187,37 @@ describe("command lists", () => {
     const { stdout } = shell("echo a | cat\necho b\necho c | cat\n");
     expect(stdout.replace(/\$ /g, "")).toContain("a\nb\nc\n");
   });
+
+  test("a background pipeline runs as one job", async () => {
+    const out = path.join(tmpDir, "out.txt");
+    const { stdout, stderr } = shell(`echo a | tr a b > ${out} &\n`);
+    expect(stderr).toBe("");
+    expect(stdout).toMatch(/\[1\] \d+/);
+    await waitForFile(out);
+    expect(fs.readFileSync(out, "utf8")).toBe("b\n");
+  });
+
+  test("a background and-or list runs as one job", async () => {
+    const out = path.join(tmpDir, "out.txt");
+    shell(`true && echo done > ${out} &\n`);
+    await waitForFile(out);
+    expect(fs.readFileSync(out, "utf8")).toBe("done\n");
+  });
+
+  test("a background builtin runs in a subshell and can't change this shell", () => {
+    const { stdout } = shell("cd / &\npwd\n");
+    expect(stdout).toContain(fs.realpathSync(tmpDir));
+  });
 });
+
+// The shell exits once input ends, but a background job may still be
+// finishing; wait for the file it writes.
+async function waitForFile(file: string) {
+  for (
+    let i = 0;
+    i < 50 && !(fs.existsSync(file) && fs.statSync(file).size > 0);
+    i++
+  ) {
+    await Bun.sleep(20);
+  }
+}
