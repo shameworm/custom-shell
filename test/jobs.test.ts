@@ -131,3 +131,36 @@ describe("JobTable reaping", () => {
     ]);
   });
 });
+
+describe("JobTable.reap", () => {
+  test("returns nothing while all jobs are running", () => {
+    table.add(100, "sleep 100");
+    expect(table.reap()).toEqual([]);
+    expect(table.list()).toHaveLength(1);
+  });
+
+  test("reports only finished jobs, with markers from the full table", () => {
+    table.add(100, "sleep 5");
+    table.add(101, "sleep 100");
+    table.markDone(100);
+    expect(table.reap()).toEqual(["[1]-  Done                    sleep 5"]);
+  });
+
+  test("removes reaped jobs so jobs no longer shows them", () => {
+    table.add(100, "sleep 5");
+    table.add(101, "sleep 100");
+    table.markDone(100);
+    table.reap();
+    expect(table.report()).toEqual([
+      "[2]+  Running                 sleep 100 &",
+    ]);
+  });
+
+  test("a job is reported Done only once across reap and jobs", () => {
+    table.add(100, "sleep 1");
+    table.markDone(100);
+    expect(table.reap()).toHaveLength(1);
+    expect(table.report()).toEqual([]);
+    expect(table.reap()).toEqual([]);
+  });
+});

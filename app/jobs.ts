@@ -35,6 +35,16 @@ export class JobTable {
     return lines;
   }
 
+  // Done lines for jobs that finished since the last check, shown before the
+  // next prompt. Markers are taken from the whole table, running jobs included,
+  // before the finished jobs are removed.
+  reap(): string[] {
+    const done = this.jobs.filter((job) => job.status === "Done");
+    const lines = done.map((job) => formatJob(job, this.marker(job)));
+    this.jobs = this.jobs.filter((job) => job.status !== "Done");
+    return lines;
+  }
+
   // "+" for the most recent job, "-" for the one before it, " " otherwise.
   private marker(job: Job): string {
     const fromEnd = this.jobs.length - 1 - this.jobs.indexOf(job);

@@ -38,7 +38,13 @@ const rl: Interface = createInterface({
   ),
 });
 
-rl.prompt();
+// Shows the prompt, first reporting any background jobs that have finished.
+function prompt() {
+  for (const line of jobTable.reap()) console.log(line);
+  rl.prompt();
+}
+
+prompt();
 
 rl.on("line", (line: string) => {
   const tokens = parseArgs(line);
@@ -50,7 +56,7 @@ rl.on("line", (line: string) => {
   const [name, ...args] = words;
 
   if (!name) {
-    rl.prompt();
+    prompt();
     return;
   }
 
@@ -81,7 +87,7 @@ rl.on("line", (line: string) => {
     if (errFd !== undefined) fs.closeSync(errFd);
   }
 
-  rl.prompt();
+  prompt();
 });
 
 // Starts an external command without waiting for it, records it as a job and
