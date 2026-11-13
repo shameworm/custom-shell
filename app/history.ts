@@ -22,6 +22,11 @@ export class History {
     }
   }
 
+  /** Replaces the file's contents with the whole history, one line each. */
+  writeFile(path: string): void {
+    fs.writeFileSync(path, toFileText(this.entries));
+  }
+
   list(): readonly string[] {
     return this.entries;
   }
@@ -37,25 +42,31 @@ export class History {
   }
 }
 
+function toFileText(lines: readonly string[]): string {
+  return lines.map((line) => line + "\n").join("");
+}
+
 /** The shell's command history. */
 export const history = new History();
 
 // The `history` builtin:
 //   history [n]      list the history, or only the last n entries
 //   history -r file  read a history file into the history
+//   history -w file  write the history to a file, replacing its contents
 export function historyBuiltin(
   args: string[],
   out: (line: string) => void,
   err: (line: string) => void,
 ): void {
   const [arg, path] = args;
-  if (arg === "-r") {
+  const fileAction = arg ? FILE_ACTIONS[arg] : undefined;
+  if (fileAction) {
     if (path === undefined) {
-      err("history: -r: option requires a file argument");
+      err(`history: ${arg}: option requires a file argument`);
       return;
     }
     try {
-      history.readFile(path);
+      fileAction(path);
     } catch (error) {
       err(`history: ${path}: ${describe(error)}`);
     }
@@ -69,6 +80,11 @@ export function historyBuiltin(
     err(`history: ${arg}: numeric argument required`);
   }
 }
+
+const FILE_ACTIONS: Record<string, (path: string) => void> = {
+  "-r": (path) => history.readFile(path),
+  "-w": (path) => history.writeFile(path),
+};
 
 function describe(error: unknown): string {
   const code = (error as NodeJS.ErrnoException).code;

@@ -171,4 +171,44 @@ describe("history files", () => {
       expect(err).toEqual(["history: -r: option requires a file argument"]);
     });
   });
+
+  describe("History.writeFile", () => {
+    test("writes every entry on its own line with a trailing newline", () => {
+      h.add("echo hello");
+      h.add("echo world");
+      h.add("history -w file");
+      h.writeFile(file);
+      expect(fs.readFileSync(file, "utf8")).toBe(
+        "echo hello\necho world\nhistory -w file\n",
+      );
+    });
+
+    test("replaces what the file had before", () => {
+      fs.writeFileSync(file, "old\n");
+      h.add("new");
+      h.writeFile(file);
+      expect(fs.readFileSync(file, "utf8")).toBe("new\n");
+    });
+  });
+
+  describe("history -w", () => {
+    test("writes the shell history and reports a missing argument", () => {
+      run("-w", file);
+      expect(fs.readFileSync(file, "utf8")).toBe(
+        history
+          .list()
+          .map((l) => l + "\n")
+          .join(""),
+      );
+      run("-w");
+      expect(err).toEqual(["history: -w: option requires a file argument"]);
+    });
+
+    test("reports a file it cannot write", () => {
+      run("-w", path.join(tmpDir, "missing-dir", "h"));
+      expect(err).toEqual([
+        `history: ${path.join(tmpDir, "missing-dir", "h")}: No such file or directory`,
+      ]);
+    });
+  });
 });
