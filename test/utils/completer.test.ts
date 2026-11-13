@@ -117,4 +117,12 @@ describe("completer filename completion", () => {
     complete = makeCompleter(["echo"], [file("echo.txt")]);
     expect(complete("  ech")).toEqual([["echo "], "ech"]);
   });
+
+  test("replaces the whole partial path with the full path", () => {
+    complete = makeCompleter([], [file("path/to/file.txt")]);
+    expect(complete("cat path/to/f")).toEqual([
+      ["path/to/file.txt "],
+      "path/to/f",
+    ]);
+  });
 });
