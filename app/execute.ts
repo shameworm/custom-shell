@@ -118,7 +118,10 @@ export function startJob(
 // would stop working. So the subshell never gets the terminal: its stdout
 // and stderr are pipes, relayed to the terminal by two `cat` processes.
 // The relays have their own session, so Ctrl-C doesn't cut them off.
-export function startSubshellJob(args: string[], command: string) {
+export function startSubshellJob(
+  [file, args]: [string, string[]],
+  command: string,
+) {
   const [outRead, outWrite] = createPipe();
   const [errRead, errWrite] = createPipe();
   for (const [read, target] of [
@@ -131,6 +134,6 @@ export function startSubshellJob(args: string[], command: string) {
     });
     relay.on("error", (error) => console.error(`cat: ${error.message}`));
   }
-  startJob(process.execPath, args, command, [outWrite, errWrite]);
+  startJob(file, args, command, [outWrite, errWrite]);
   for (const fd of [outRead, outWrite, errRead, errWrite]) fs.closeSync(fd);
 }

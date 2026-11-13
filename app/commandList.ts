@@ -1,9 +1,8 @@
-import * as path from "path";
-
 import { builtins } from "./builtins";
 import { runCommand, startSubshellJob } from "./execute";
 import { jobCommand } from "./jobs";
 import { runPipeline, splitPipeline } from "./pipeline";
+import { subshellCommand } from "./subshell";
 import { parseArgs, ShellSyntaxError, type Token } from "./utils/parseArgs";
 import { parseRedirect } from "./utils/redirect";
 import { lookupVariable, shellVariables } from "./variables";
@@ -97,8 +96,6 @@ export async function runCommandList(
   return status;
 }
 
-const SUBSHELL = path.join(import.meta.dir, "subshell.ts");
-
 /** What a subshell process receives: the list and this shell's variables. */
 export interface SubshellInput {
   list: AndOrList;
@@ -119,7 +116,7 @@ async function runAndOr(list: AndOrList, jobText: string): Promise<number> {
       }
     }
     const input: SubshellInput = { list, variables: [...shellVariables] };
-    startSubshellJob([SUBSHELL, JSON.stringify(input)], jobText);
+    startSubshellJob(subshellCommand(JSON.stringify(input)), jobText);
     return 0;
   }
 
