@@ -210,3 +210,19 @@ describe("completer filename longest common prefix", () => {
     expect(bells).toBe(1);
   });
 });
+
+describe("completer in any argument position", () => {
+  beforeEach(() => {
+    complete = makeCompleter([], [file("foo"), dir("bar")]);
+  });
+
+  test("completes each later argument independently", () => {
+    expect(complete("ls b")).toEqual([["bar/"], "b"]);
+    expect(complete("ls bar/ f")).toEqual([["foo "], "f"]);
+  });
+
+  test("rings the bell for an unmatched later argument", () => {
+    expect(complete("ls bar/ foo x")).toEqual([[], "x"]);
+    expect(bells).toBe(1);
+  });
+});
