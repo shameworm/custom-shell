@@ -79,3 +79,31 @@ describe("runPipeline with two external commands", () => {
     error.mockRestore();
   });
 });
+
+describe("runPipeline with builtins", () => {
+  test("a builtin first feeds its output to the next command", async () => {
+    expect((await run("echo apple-orange | wc -c")).trim()).toBe("13");
+  });
+
+  test("a builtin last ignores its input and prints its own output", async () => {
+    expect(await run("ls | type exit")).toBe("exit is a shell builtin\n");
+  });
+
+  test("a builtin in the middle passes its output on", async () => {
+    expect((await run("yes | echo hi | wc -l")).trim()).toBe("1");
+  });
+
+  test("builtins can be chained", async () => {
+    expect(await run("echo a | echo b")).toBe("b\n");
+  });
+
+  test("builtin output is dropped quietly if the reader already exited", async () => {
+    expect(await run("type echo | head -n 0")).toBe("");
+  });
+
+  test("a builtin's error output goes to its own 2> redirect", async () => {
+    const err = path.join(tmpDir, "err.txt");
+    await run(`type nosuch-xyz 2> ${err} | wc -l`);
+    expect(fs.readFileSync(err, "utf8")).toBe("nosuch-xyz: not found\n");
+  });
+});
