@@ -274,4 +274,11 @@ describe("completer with a registered completer script", () => {
     expect(complete("gi")).toEqual([["git "], "gi"]);
     expect(contexts).toEqual([]);
   });
+
+  test("rings the bell and leaves input unchanged when the script prints nothing", () => {
+    scripts.docker = () => [];
+    complete = makeCompleter([], [file("xyz.txt")]);
+    expect(complete("docker xyz")).toEqual([[], "xyz"]);
+    expect(bells).toBe(1);
+  });
 });
