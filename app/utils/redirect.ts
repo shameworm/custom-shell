@@ -1,3 +1,5 @@
+import { ShellSyntaxError, type Token } from "./parseArgs";
+
 export interface RedirectTarget {
   file: string;
   append: boolean;
@@ -9,7 +11,7 @@ export interface Redirect {
   stderr?: RedirectTarget;
 }
 
-const OPERATORS: Record<
+const REDIRECTS: Record<
   string,
   { stream: "stdout" | "stderr"; append: boolean }
 > = {
@@ -21,17 +23,27 @@ const OPERATORS: Record<
   "2>>": { stream: "stderr", append: true },
 };
 
-export function parseRedirect(tokens: string[]): Redirect {
+// Separates a command's words from its redirects. Each redirect operator
+// must be followed by a word naming the file; otherwise it's a syntax
+// error, reported with the token that came instead (or "newline").
+export function parseRedirect(tokens: Token[]): Redirect {
   const result: Redirect = { args: [] };
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
-    const op = OPERATORS[token];
-    if (op && i + 1 < tokens.length) {
-      result[op.stream] = { file: tokens[++i]!, append: op.append };
+    if (token.type === "word") {
+      result.args.push(token.text);
       continue;
     }
-    result.args.push(token);
+
+    const redirect = REDIRECTS[token.text];
+    const target = tokens[i + 1];
+    if (!redirect) throw new ShellSyntaxError(token.text);
+    if (target?.type !== "word") {
+      throw new ShellSyntaxError(target?.text ?? "newline");
+    }
+    result[redirect.stream] = { file: target.text, append: redirect.append };
+    i++;
   }
 
   return result;

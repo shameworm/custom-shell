@@ -4,13 +4,14 @@ import * as fs from "fs";
 import { builtins, type Writer } from "./builtins";
 import { createPipe } from "./utils/osPipe";
 import { findInPath } from "./utils/pathUtils";
+import { ShellError, ShellSyntaxError, type Token } from "./utils/parseArgs";
 import { parseRedirect, type RedirectTarget } from "./utils/redirect";
 
-/** Splits tokens at each `|` into the words of each stage. */
-export function splitPipeline(tokens: string[]): string[][] {
-  const stages: string[][] = [[]];
+/** Splits tokens at each | operator into the tokens of each stage. */
+export function splitPipeline(tokens: Token[]): Token[][] {
+  const stages: Token[][] = [[]];
   for (const token of tokens) {
-    if (token === "|") stages.push([]);
+    if (token.type === "operator" && token.text === "|") stages.push([]);
     else stages.at(-1)!.push(token);
   }
   return stages;
@@ -25,9 +26,17 @@ export function splitPipeline(tokens: string[]): string[][] {
 // their output always has a reader. They don't read stdin, so their input
 // pipe is closed right away: whatever feeds them gets SIGPIPE, and its
 // output is discarded (`ls | type exit` prints only the type line).
-export async function runPipeline(stages: string[][]): Promise<void> {
-  if (stages.some((stage) => stage.length === 0)) {
-    console.error("syntax error near unexpected token `|'");
+export async function runPipeline(stages: Token[][]): Promise<void> {
+  // Check every stage before starting any process.
+  let parsed: ReturnType<typeof parseRedirect>[];
+  try {
+    if (stages.some((stage) => stage.length === 0)) {
+      throw new ShellSyntaxError("|");
+    }
+    parsed = stages.map(parseRedirect);
+  } catch (error) {
+    if (!(error instanceof ShellError)) throw error;
+    console.error(error.message);
     return;
   }
 
@@ -35,8 +44,7 @@ export async function runPipeline(stages: string[][]): Promise<void> {
   const builtinRuns: (() => void)[] = [];
   let input: number | undefined;
 
-  stages.forEach((stage, index) => {
-    const { args: words, stdout, stderr } = parseRedirect(stage);
+  parsed.forEach(({ args: words, stdout, stderr }, index) => {
     const [name, ...args] = words;
     const pipe = index < stages.length - 1 ? createPipe() : undefined;
     const outFile = openTarget(stdout);

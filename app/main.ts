@@ -13,8 +13,17 @@ import {
   findPathCompletions,
 } from "./utils/pathUtils";
 import { createCompleter } from "./utils/completer";
-import { ExpansionError, parseArgs } from "./utils/parseArgs";
-import { parseRedirect, type RedirectTarget } from "./utils/redirect";
+import {
+  parseArgs,
+  ShellError,
+  ShellSyntaxError,
+  type Token,
+} from "./utils/parseArgs";
+import {
+  parseRedirect,
+  type Redirect,
+  type RedirectTarget,
+} from "./utils/redirect";
 import { shellVariables } from "./variables";
 
 const rl: Interface = createInterface({
@@ -77,36 +86,44 @@ rl.on("line", (line: string) => {
   // Recorded before running, so `history` lists itself.
   history.add(line);
 
-  let tokens: string[];
   try {
-    tokens = parseArgs(line, (name) => shellVariables.get(name));
+    const tokens = parseArgs(line, (name) => shellVariables.get(name));
+    // A trailing & runs the command in the background. An & anywhere else
+    // would separate commands, which isn't supported yet.
+    const background = isOperator(tokens.at(-1), "&");
+    if (background) tokens.pop();
+    if (tokens.some((t) => isOperator(t, "&"))) {
+      throw new ShellSyntaxError("&");
+    }
+
+    if (tokens.some((t) => isOperator(t, "|"))) {
+      // Pause input while the pipeline runs, then show the next prompt.
+      rl.pause();
+      runPipeline(splitPipeline(tokens)).finally(() => {
+        rl.resume();
+        prompt();
+      });
+      return;
+    }
+
+    run(line, parseRedirect(tokens), background);
   } catch (error) {
-    if (!(error instanceof ExpansionError)) throw error;
+    if (!(error instanceof ShellError)) throw error;
     console.error(error.message);
-    prompt();
-    return;
   }
-  // A trailing & runs the command in the background.
-  const background = tokens.at(-1) === "&";
-  if (background) tokens.pop();
+  prompt();
+});
 
-  if (tokens.includes("|")) {
-    // Pause input while the pipeline runs, then show the next prompt.
-    rl.pause();
-    runPipeline(splitPipeline(tokens)).finally(() => {
-      rl.resume();
-      prompt();
-    });
-    return;
-  }
+function isOperator(token: Token | undefined, text: string): boolean {
+  return token?.type === "operator" && token.text === text;
+}
 
-  const { args: words, stdout, stderr } = parseRedirect(tokens);
+// Runs one command (a builtin or an external program), in the background
+// if requested.
+function run(line: string, redirect: Redirect, background: boolean) {
+  const { args: words, stdout, stderr } = redirect;
   const [name, ...args] = words;
-
-  if (!name) {
-    prompt();
-    return;
-  }
+  if (!name) return;
 
   // Open the target files up front (create, then truncate or append), like a real shell does.
   const open = (target?: RedirectTarget) =>
@@ -134,9 +151,7 @@ rl.on("line", (line: string) => {
     if (outFd !== undefined) fs.closeSync(outFd);
     if (errFd !== undefined) fs.closeSync(errFd);
   }
-
-  prompt();
-});
+}
 
 // Starts an external command without waiting for it, records it as a job and
 // reports its job number and pid. The job writes to the shell's terminal

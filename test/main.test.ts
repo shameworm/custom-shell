@@ -108,3 +108,29 @@ describe("parameter expansion", () => {
     expect(stdout).toContain("after\n");
   });
 });
+
+describe("operators", () => {
+  test("quoted operator characters are printed, not interpreted", () => {
+    const { stdout } = shell(`echo '|' "&" '>' x\n`);
+    expect(stdout).toContain("| & > x\n");
+    expect(fs.readdirSync(tmpDir)).toEqual([]);
+  });
+
+  test("redirects and pipes work without spaces", () => {
+    const { stdout } = shell("echo hi>out.txt\necho a|tr a b\n");
+    expect(fs.readFileSync(path.join(tmpDir, "out.txt"), "utf8")).toBe("hi\n");
+    expect(stdout).toContain("b\n");
+  });
+
+  test("a trailing & without a space starts a background job", () => {
+    const { stdout } = shell("sleep 0&\n");
+    expect(stdout).toMatch(/\[1\] \d+/);
+  });
+
+  test("syntax errors are reported and the shell keeps running", () => {
+    const { stdout, stderr } = shell("echo >\necho a & echo b\necho after\n");
+    expect(stderr).toContain("syntax error near unexpected token `newline'");
+    expect(stderr).toContain("syntax error near unexpected token `&'");
+    expect(stdout).toContain("after\n");
+  });
+});

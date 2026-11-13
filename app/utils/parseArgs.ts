@@ -15,8 +15,26 @@ function isEscapable(quote: string, next: string): boolean {
 /** Looks up a variable's value; undefined when it isn't set. */
 export type VariableLookup = (name: string) => string | undefined;
 
-/** Thrown for a malformed ${...}; the message is what bash prints. */
-export class ExpansionError extends Error {}
+/** An error in a command line; the message is what bash prints. */
+export class ShellError extends Error {}
+
+/** Thrown for a malformed ${...}. */
+export class ExpansionError extends ShellError {}
+
+/** Thrown for operators in the wrong place, e.g. a redirect with no file. */
+export class ShellSyntaxError extends ShellError {
+  constructor(token: string) {
+    super(`syntax error near unexpected token \`${token}'`);
+  }
+}
+
+export type Operator = "|" | "&" | ">" | ">>" | "1>" | "1>>" | "2>" | "2>>";
+
+// A word (after quote removal and expansion), or an operator. Only an
+// unquoted, unescaped operator character makes an operator, so a quoted
+// '|' or an expanded value containing & is an ordinary word.
+export type Token =
+  { type: "word"; text: string } | { type: "operator"; text: Operator };
 
 // A $NAME or ${NAME} reference starting at `start` (the $): the variable
 // name and the index just past the reference, or undefined if no name
@@ -43,28 +61,37 @@ function readReference(
     : undefined;
 }
 
-// Splits a command line into words, handling quotes, backslash escapes and
-// $NAME / ${NAME} expansion. Unset variables expand to nothing. An expansion
-// inside double quotes stays part of one word; an unquoted one is split on
-// whitespace, and adds no word at all if it's empty.
+// Splits a command line into words and operators, handling quotes,
+// backslash escapes and $NAME / ${NAME} expansion. Unset variables expand
+// to nothing. An expansion inside double quotes stays part of one word; an
+// unquoted one is split on whitespace, and adds no word at all if it's empty.
+//
+// Unquoted |, &, > and >> are operators even without spaces around them
+// (`a|b`, `sleep 1&`). A 1 or 2 directly before > makes 1> / 2> only when
+// it starts the word, as in bash: `echo a2>f` writes "a2" to f.
 export function parseArgs(
   line: string,
   lookup: VariableLookup = () => undefined,
-): string[] {
-  const args: string[] = [];
+): Token[] {
+  const tokens: Token[] = [];
 
   let current = "";
   let inToken = false;
   let quote = "";
+  // Where the current word starts in `line`, to tell a bare 2 from "2".
+  let wordStart = 0;
 
+  const startWord = (index: number) => {
+    if (!inToken) wordStart = index;
+    inToken = true;
+  };
   const endWord = () => {
     if (inToken) {
-      args.push(current);
+      tokens.push({ type: "word", text: current });
       current = "";
       inToken = false;
     }
   };
-
   for (let i = 0; i < line.length; i++) {
     const char = line.charAt(i);
 
@@ -78,7 +105,7 @@ export function parseArgs(
       const next = line.charAt(i + 1);
       if (isEscapable(quote, next)) {
         current += next;
-        inToken = true;
+        startWord(i);
         i++;
         continue;
       }
@@ -90,13 +117,13 @@ export function parseArgs(
         const value = lookup(ref.name) ?? "";
         if (quote === '"') {
           current += value;
-          inToken = true;
+          startWord(i);
         } else {
           for (const c of value) {
             if (isSpace(c)) endWord();
             else {
               current += c;
-              inToken = true;
+              startWord(i);
             }
           }
         }
@@ -107,13 +134,12 @@ export function parseArgs(
 
     if (char === quote) {
       quote = "";
-      inToken = true;
       continue;
     }
 
     if (quote === "" && isQuote(char)) {
       quote = char;
-      inToken = true;
+      startWord(i);
       continue;
     }
 
@@ -122,10 +148,35 @@ export function parseArgs(
       continue;
     }
 
+    if (quote === "" && (char === "|" || char === "&")) {
+      endWord();
+      tokens.push({ type: "operator", text: char });
+      continue;
+    }
+
+    if (quote === "" && char === ">") {
+      const append = line.charAt(i + 1) === ">";
+      // A word that is exactly an unquoted 1 or 2 names the stream.
+      const raw = inToken ? line.slice(wordStart, i) : "";
+      const fd = raw === "1" || raw === "2" ? raw : "";
+      if (fd) {
+        current = "";
+        inToken = false;
+      } else {
+        endWord();
+      }
+      tokens.push({
+        type: "operator",
+        text: `${fd}${append ? ">>" : ">"}` as Operator,
+      });
+      if (append) i++;
+      continue;
+    }
+
     current += char;
-    inToken = true;
+    startWord(i);
   }
 
-  if (inToken) args.push(current);
-  return args;
+  endWord();
+  return tokens;
 }
