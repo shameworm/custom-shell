@@ -15,6 +15,7 @@ import {
 import { createCompleter } from "./utils/completer";
 import { parseArgs } from "./utils/parseArgs";
 import { parseRedirect, type RedirectTarget } from "./utils/redirect";
+import { shellVariables } from "./variables";
 
 const rl: Interface = createInterface({
   input: process.stdin,
@@ -76,7 +77,7 @@ rl.on("line", (line: string) => {
   // Recorded before running, so `history` lists itself.
   history.add(line);
 
-  const tokens = parseArgs(line);
+  const tokens = parseArgs(line, (name) => shellVariables.get(name));
   // A trailing & runs the command in the background.
   const background = tokens.at(-1) === "&";
   if (background) tokens.pop();
