@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { spawnSync } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -221,3 +221,20 @@ async function waitForFile(file: string) {
     await Bun.sleep(20);
   }
 }
+
+describe("Ctrl-C (SIGINT)", () => {
+  // Ignoring SIGINT is only for interactive use; with piped input the
+  // shell must still stop on it, like a script would.
+  test("a non-interactive shell still stops on SIGINT", async () => {
+    const child = spawn(process.execPath, [MAIN], {
+      cwd: tmpDir,
+      stdio: ["pipe", "ignore", "ignore"],
+    });
+    await Bun.sleep(300);
+    child.kill("SIGINT");
+    const signal = await new Promise((resolve) =>
+      child.on("exit", (_code, sig) => resolve(sig)),
+    );
+    expect(signal).toBe("SIGINT");
+  });
+});
