@@ -4,6 +4,7 @@ import * as os from "os";
 
 import { builtins, type Writer } from "./builtins";
 import { jobTable } from "./jobs";
+import { createPipe } from "./utils/osPipe";
 import { findInPath } from "./utils/pathUtils";
 import type { Redirect, RedirectTarget } from "./utils/redirect";
 
@@ -108,4 +109,28 @@ export function startJob(
   const job = jobTable.add(child.pid, command);
   child.on("exit", () => jobTable.markDone(job.pid));
   console.log(`[${job.id}] ${job.pid}`);
+}
+
+// Starts a Bun subshell process as a job. Bun restores, when it exits, the
+// terminal settings it saw at startup. A subshell starts just after the
+// prompt has put the terminal back into raw mode, so on exiting during a
+// later foreground command it would switch raw mode back on, and Ctrl-C
+// would stop working. So the subshell never gets the terminal: its stdout
+// and stderr are pipes, relayed to the terminal by two `cat` processes.
+// The relays have their own session, so Ctrl-C doesn't cut them off.
+export function startSubshellJob(args: string[], command: string) {
+  const [outRead, outWrite] = createPipe();
+  const [errRead, errWrite] = createPipe();
+  for (const [read, target] of [
+    [outRead, 1],
+    [errRead, 2],
+  ] as const) {
+    const relay = spawn("cat", [], {
+      detached: true,
+      stdio: [read, target, "ignore"],
+    });
+    relay.on("error", (error) => console.error(`cat: ${error.message}`));
+  }
+  startJob(process.execPath, args, command, [outWrite, errWrite]);
+  for (const fd of [outRead, outWrite, errRead, errWrite]) fs.closeSync(fd);
 }

@@ -1,7 +1,7 @@
 import * as path from "path";
 
 import { builtins } from "./builtins";
-import { runCommand, startJob } from "./execute";
+import { runCommand, startSubshellJob } from "./execute";
 import { jobCommand } from "./jobs";
 import { runPipeline, splitPipeline } from "./pipeline";
 import { ShellSyntaxError, type Token } from "./utils/parseArgs";
@@ -99,7 +99,7 @@ async function runAndOr(list: AndOrList, jobText: string): Promise<number> {
         return runCommand(redirect, true, jobText);
       }
     }
-    startJob(process.execPath, [SUBSHELL, JSON.stringify(list)], jobText);
+    startSubshellJob([SUBSHELL, JSON.stringify(list)], jobText);
     return 0;
   }
 
