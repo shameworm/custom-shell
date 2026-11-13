@@ -44,6 +44,35 @@ describe("HISTFILE", () => {
     );
   });
 
+  test("appends this session's commands after the loaded ones", () => {
+    fs.writeFileSync(
+      histfile,
+      "echo initial_command_1\necho initial_command_2\n",
+    );
+    shell("echo new_command\nexit\n", { HISTFILE: histfile });
+    expect(fs.readFileSync(histfile, "utf8")).toBe(
+      "echo initial_command_1\necho initial_command_2\n" +
+        "echo new_command\nexit\n",
+    );
+  });
+
+  test("keeps lines another session added to the file meanwhile", () => {
+    fs.writeFileSync(histfile, "echo initial\n");
+    // Simulates another shell saving its history while this one runs.
+    const other = `sh -c 'echo from-other-session >> ${histfile}'`;
+    shell(`${other}\nexit\n`, { HISTFILE: histfile });
+    expect(fs.readFileSync(histfile, "utf8")).toBe(
+      `echo initial\nfrom-other-session\n${other}\nexit\n`,
+    );
+  });
+
+  test("does not repeat lines already saved with history -a", () => {
+    shell(`echo one\nhistory -a ${histfile}\nexit\n`, { HISTFILE: histfile });
+    expect(fs.readFileSync(histfile, "utf8")).toBe(
+      `echo one\nhistory -a ${histfile}\nexit\n`,
+    );
+  });
+
   test("saves the history when input ends without exit", () => {
     shell("echo eof\n", { HISTFILE: histfile });
     expect(fs.readFileSync(histfile, "utf8")).toBe("echo eof\n");

@@ -243,6 +243,13 @@ describe("history files", () => {
       expect(fs.readFileSync(file, "utf8")).toBe("one\ntwo\n");
     });
 
+    test("starts on a new line if the file lacks a final newline", () => {
+      fs.writeFileSync(file, "echo old");
+      h.add("echo new");
+      h.appendFile(file);
+      expect(fs.readFileSync(file, "utf8")).toBe("echo old\necho new\n");
+    });
+
     test("creates the file if needed", () => {
       h.add("one");
       h.appendFile(file);
