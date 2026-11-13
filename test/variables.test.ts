@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import { declareBuiltin, shellVariables } from "../app/variables";
+import { declareBuiltin, isIdentifier, shellVariables } from "../app/variables";
 
 let out: string[];
 let err: string[];
@@ -68,5 +68,42 @@ describe("declare NAME=VALUE", () => {
     run("a=1", "b=2");
     run("-p");
     expect(out).toEqual(['declare -- a="1"', 'declare -- b="2"']);
+  });
+});
+
+describe("identifier validation", () => {
+  test("accepts letters, digits and underscores, not starting with a digit", () => {
+    for (const name of ["foo", "_FOO", "a1", "_", "Variable_1"]) {
+      expect(isIdentifier(name)).toBe(true);
+    }
+  });
+
+  test("rejects names starting with a digit or containing other characters", () => {
+    for (const name of ["67", "1abc", "", "a-b", "a.b", "a b", "é"]) {
+      expect(isIdentifier(name)).toBe(false);
+    }
+  });
+
+  test("declare accepts valid names silently", () => {
+    run("foo=bar", "_FOO=BAR");
+    expect(err).toEqual([]);
+    expect(shellVariables.get("_FOO")).toBe("BAR");
+  });
+
+  test("declare reports an invalid name and does not create it", () => {
+    run("67=x");
+    expect(err).toEqual(["declare: `67=x': not a valid identifier"]);
+    expect(shellVariables.has("67")).toBe(false);
+  });
+
+  test("declare still sets the valid names around an invalid one", () => {
+    run("a=1", "2b=x", "c=3");
+    expect(err).toEqual(["declare: `2b=x': not a valid identifier"]);
+    expect([...shellVariables.keys()]).toEqual(["a", "c"]);
+  });
+
+  test("an invalid name without = is reported too", () => {
+    run("9lives");
+    expect(err).toEqual(["declare: `9lives': not a valid identifier"]);
   });
 });
