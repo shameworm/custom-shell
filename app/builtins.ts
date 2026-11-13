@@ -24,7 +24,7 @@ export const builtins: Record<string, Builtin> = {
     }
 
     if (target in builtins) {
-      out(`${target} is shell builtin command`);
+      out(`${target} is a shell builtin`);
       return;
     }
 
