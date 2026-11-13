@@ -1,8 +1,39 @@
 # custom-shell
 
+[![CI](https://github.com/shameworm/custom-shell/actions/workflows/ci.yml/badge.svg)](https://github.com/shameworm/custom-shell/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-A3850E.svg)](LICENSE)
+
 A POSIX-style interactive shell written in TypeScript and running on [Bun](https://bun.com).
 
-It reads commands at a `$ ` prompt, runs builtins and external programs from your `PATH`, handles shell-style quoting, variables, pipelines, redirection, background jobs, command history, and tab completion.
+It runs builtins and external programs from your `PATH`, and handles:
+- shell-style quoting and variables;
+- pipelines and redirection;
+- `&&` / `||` / `;` command lists;
+- background jobs and command history;
+- tab completion and Ctrl-C.
+
+![custom-shell demo](docs/demo.gif)
+
+## Install
+
+Download a standalone binary for macOS or Linux (x64 or arm64) from the [latest release](https://github.com/shameworm/custom-shell/releases/latest). It needs nothing else installed:
+
+```bash
+tar -xzf custom-shell-*.tar.gz
+./custom-shell
+```
+
+On macOS, a binary downloaded with a browser is quarantined; allow it once with `xattr -d com.apple.quarantine custom-shell`.
+
+Or run it from source with Bun (see [Getting started](#getting-started)).
+
+## Looks
+
+On an interactive terminal, the prompt shows the current directory, the git branch, and an arrow that turns red after a failed command or Ctrl-C. Colours come from the [omarchy blackgold](https://github.com/HANCORE-linux/omarchy-blackgold-theme) palette: gold on near-black. Errors are shown in its red, and directories in completion lists in its gold.
+
+With piped input, `NO_COLOR` set, or `TERM=dumb`, the shell prints exactly what bash would: a plain `$ ` prompt and uncoloured errors.
+
+Below, the `$ ` prompt stands for the themed one.
 
 ```console
 $ echo 'hello   world' "and \"quotes\""
@@ -247,7 +278,15 @@ Requires [Bun](https://bun.com) 1.3 or later.
 bun install
 bun run dev        # start the shell
 bun test           # run the test suite
+bun run typecheck  # type-check with tsc
+bun run build      # compile a standalone binary to dist/custom-shell
 ```
+
+The demo GIF is recorded with [VHS](https://github.com/charmbracelet/vhs) from [`docs/demo.tape`](docs/demo.tape): run `vhs docs/demo.tape`.
+
+### Releases
+
+CI runs the type checker and tests on Linux and macOS for every push and pull request. Pushing a tag such as `v1.0.0` builds the binaries for all four platforms (the macOS ones ad-hoc signed) and publishes them, with SHA-256 checksums, as a GitHub release.
 
 ## Project structure
 
@@ -261,7 +300,8 @@ app/
 ├── history.ts           # command history and the history builtin
 ├── jobs.ts              # background job table and jobs output
 ├── pipeline.ts          # runs | pipelines of builtins and external commands
-├── subshell.ts          # runs a background list in its own process
+├── theme.ts             # blackgold colours and the prompt
+├── subshell.ts          # starts and runs background lists in a subshell
 ├── variables.ts         # shell variables and the declare builtin
 └── utils/
     ├── parseArgs.ts     # tokenizer: quotes, escapes and $VAR expansion
