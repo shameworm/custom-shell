@@ -5,6 +5,8 @@ export interface Candidate {
   value: string;
   /** Appended when this is the only match, e.g. a space after a file name. */
   suffix: string;
+  /** How the match is shown when several are listed, e.g. "foo/" for a directory. */
+  label: string;
 }
 
 export interface CompletionSources {
@@ -47,7 +49,7 @@ export function createCompleter(sources: CompletionSources, io: CompleterIO) {
     }
 
     if (lastAmbiguousLine === line) {
-      io.list(matches.map((c) => c.value));
+      io.list(matches.map((c) => c.label));
     } else {
       io.bell();
       lastAmbiguousLine = line;
@@ -64,6 +66,7 @@ export function createCompleter(sources: CompletionSources, io: CompleterIO) {
       ? [...new Set(sources.commands(word))].map((name) => ({
           value: name,
           suffix: " ",
+          label: name,
         }))
       : sources.paths(word);
 

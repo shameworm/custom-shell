@@ -92,10 +92,14 @@ export function findPathCompletions(word: string): Candidate[] {
   return entries
     .filter(({ name }) => name.startsWith(prefix))
     .filter(({ name }) => prefix.startsWith(".") || !name.startsWith("."))
-    .map((entry) => ({
-      value: dir + entry.name,
-      suffix: isDirectory(dir + entry.name, entry) ? "/" : " ",
-    }));
+    .map((entry) => {
+      const isDir = isDirectory(dir + entry.name, entry);
+      return {
+        value: dir + entry.name,
+        suffix: isDir ? "/" : " ",
+        label: isDir ? entry.name + "/" : entry.name,
+      };
+    });
 }
 
 // Follows symlinks, so a link to a directory completes like a directory.
