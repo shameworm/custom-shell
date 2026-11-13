@@ -36,6 +36,7 @@ describe("builtins", () => {
       "complete",
       "echo",
       "exit",
+      "jobs",
       "pwd",
       "type",
     ]);
