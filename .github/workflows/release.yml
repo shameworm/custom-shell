@@ -28,9 +28,7 @@ jobs:
         include:
           - { os: ubuntu-latest, target: linux-x64 }
           - { os: ubuntu-latest, target: linux-arm64 }
-          # Bun signs the macOS binaries it compiles (Apple Silicon won't
-          # run unsigned code), so no codesign step is needed; re-signing
-          # actually fails, because Bun appends the program after signing.
+          # macOS binaries are built on macOS so they can be signed.
           - { os: macos-latest, target: darwin-arm64 }
           - { os: macos-latest, target: darwin-x64 }
     runs-on: ${{ matrix.os }}
@@ -40,13 +38,22 @@ jobs:
           ref: ${{ env.TAG }}
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.13
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Compile
         run: |
           mkdir -p dist
           bun build --compile --minify --target=bun-${{ matrix.target }} \
             app/main.ts --outfile dist/custom-shell
+      # Bun's own signature doesn't cover the program it appends, so macOS
+      # reports a downloaded binary as "damaged". An ad-hoc signature over
+      # the finished file fixes that (needs Bun 1.4+; 1.3 couldn't be
+      # re-signed). The verify step fails the build if it's still invalid.
+      - name: Sign (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --sign - dist/custom-shell
+          codesign --verify --strict --verbose=2 dist/custom-shell
       - name: Package
         run: |
           name=custom-shell-$TAG-${{ matrix.target }}
