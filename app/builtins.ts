@@ -1,6 +1,7 @@
 import { complete } from "./complete";
 import { historyBuiltin } from "./history";
 import { jobTable } from "./jobs";
+import { declareBuiltin } from "./variables";
 import { changeDirectory, findInPath } from "./utils/pathUtils";
 
 export type Writer = (line: string) => void;
@@ -21,8 +22,8 @@ export const builtins: Record<string, Builtin> = {
   jobs: (_args, out = defaultOut) => jobTable.report().forEach(out),
   history: (args, out = defaultOut, err = defaultErr) =>
     historyBuiltin(args, out, err),
-  // Creates and inspects shell variables; implemented in later commits.
-  declare: () => {},
+  declare: (args, out = defaultOut, err = defaultErr) =>
+    declareBuiltin(args, out, err),
   type: ([target], out = defaultOut, err = defaultErr) => {
     if (!target) {
       return;
