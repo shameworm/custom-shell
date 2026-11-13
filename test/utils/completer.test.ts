@@ -304,4 +304,13 @@ describe("completer with a registered completer script", () => {
       { command: "git", word: "", previous: "git", line: "git " },
     ]);
   });
+
+  test("multiple candidates: bell first, then an alphabetical list", () => {
+    scripts.git = () => ["push", "add", "commit"];
+    complete = makeCompleter([]);
+    expect(complete("git ")).toEqual([[], ""]);
+    expect(bells).toBe(1);
+    expect(complete("git ")).toEqual([[], ""]);
+    expect(listed).toEqual([["add", "commit", "push"]]);
+  });
 });
