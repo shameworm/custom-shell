@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import { JobTable, jobCommand } from "../app/jobs";
+import { JobTable, formatJob, jobCommand } from "../app/jobs";
 
 let table: JobTable;
 
@@ -17,7 +17,9 @@ describe("JobTable.add", () => {
 
   test("records the pid and command", () => {
     table.add(4242, "sleep 10");
-    expect(table.list()).toEqual([{ id: 1, pid: 4242, command: "sleep 10" }]);
+    expect(table.list()).toEqual([
+      { id: 1, pid: 4242, command: "sleep 10", status: "Running" },
+    ]);
   });
 });
 
@@ -29,5 +31,32 @@ describe("jobCommand", () => {
 
   test("keeps the command as typed, quotes included", () => {
     expect(jobCommand(`echo "a  b" &`)).toBe(`echo "a  b"`);
+  });
+});
+
+describe("formatJob", () => {
+  test("pads the status to 24 characters and appends & for running jobs", () => {
+    const job = {
+      id: 1,
+      pid: 1,
+      command: "sleep 10",
+      status: "Running" as const,
+    };
+    expect(formatJob(job, "+")).toBe(
+      "[1]+  Running                 sleep 10 &",
+    );
+  });
+});
+
+describe("JobTable.report", () => {
+  test("is empty when there are no jobs", () => {
+    expect(table.report()).toEqual([]);
+  });
+
+  test("marks a single running job with +", () => {
+    table.add(100, "sleep 10");
+    expect(table.report()).toEqual([
+      "[1]+  Running                 sleep 10 &",
+    ]);
   });
 });
