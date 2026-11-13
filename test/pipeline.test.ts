@@ -107,3 +107,25 @@ describe("runPipeline with builtins", () => {
     expect(fs.readFileSync(err, "utf8")).toBe("nosuch-xyz: not found\n");
   });
 });
+
+describe("runPipeline with three or more stages", () => {
+  test("chains three external commands", async () => {
+    const file = fixture("file", "a\nb\nc\nd\ne\n");
+    expect((await run(`cat ${file} | head -n 3 | wc -l`)).trim()).toBe("3");
+  });
+
+  test("chains four stages", async () => {
+    const file = fixture("file", "1\n2\n3\n4\n5\n6\n7\n8\n");
+    expect(await run(`cat ${file} | tail -n 5 | head -n 3 | grep 5`)).toBe(
+      "5\n",
+    );
+  });
+
+  test("mixes builtins and external commands across several stages", async () => {
+    expect((await run("echo one | cat | tr a-z A-Z | cat")).trim()).toBe("ONE");
+  });
+
+  test("ends a long chain whose last stage exits early", async () => {
+    expect(await run("yes | cat | cat | head -n 1")).toBe("y\n");
+  });
+});
