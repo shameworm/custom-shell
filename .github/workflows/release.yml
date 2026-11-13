@@ -60,8 +60,15 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
-          gh release create "${{ github.ref_name }}" assets/* \
-            --repo "${{ github.repository }}" \
-            --title "custom-shell ${{ github.ref_name }}" \
-            --generate-notes
+          # The release may already exist if it was created on GitHub's
+          # "New release" page (which also creates the tag); then just add
+          # the binaries to it. Otherwise create it with generated notes.
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" assets/* --repo "$REPO" --clobber
+          else
+            gh release create "$TAG" assets/* --repo "$REPO" \
+              --title "custom-shell $TAG" --generate-notes
+          fi
