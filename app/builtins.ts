@@ -18,6 +18,8 @@ export const builtins: Record<string, Builtin> = {
   complete: (args, out = defaultOut, err = defaultErr) =>
     complete(args, out, err),
   jobs: (_args, out = defaultOut) => jobTable.report().forEach(out),
+  // Lists previously run commands; implemented once commands are recorded.
+  history: () => {},
   type: ([target], out = defaultOut, err = defaultErr) => {
     if (!target) {
       return;
