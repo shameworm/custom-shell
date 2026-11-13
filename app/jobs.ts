@@ -21,12 +21,15 @@ export class JobTable {
     return this.jobs;
   }
 
-  // The `jobs` builtin listing, oldest job first. The most recent job is
-  // marked with +.
+  // The `jobs` builtin listing, oldest job first.
   report(): string[] {
-    return this.jobs.map((job, index) =>
-      formatJob(job, index === this.jobs.length - 1 ? "+" : " "),
-    );
+    return this.jobs.map((job) => formatJob(job, this.marker(job)));
+  }
+
+  // "+" for the most recent job, "-" for the one before it, " " otherwise.
+  private marker(job: Job): string {
+    const fromEnd = this.jobs.length - 1 - this.jobs.indexOf(job);
+    return fromEnd === 0 ? "+" : fromEnd === 1 ? "-" : " ";
   }
 }
 
