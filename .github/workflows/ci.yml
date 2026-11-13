@@ -23,3 +23,26 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun test
+
+  install-script:
+    # Runs install.sh against the latest release and starts the installed
+    # binary, so the script and the published binaries are both checked.
+    name: Install script (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        if: runner.os == 'Linux'
+        run: shellcheck install.sh
+      - name: Install
+        run: INSTALL_DIR="$RUNNER_TEMP/bin" sh install.sh
+      - name: Run the installed shell
+        run: |
+          out="$(printf 'echo installed && type cd\n' | "$RUNNER_TEMP/bin/custom-shell")"
+          echo "$out"
+          echo "$out" | grep -q "installed"
+          echo "$out" | grep -q "cd is a shell builtin"

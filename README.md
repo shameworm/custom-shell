@@ -16,14 +16,15 @@ It runs builtins and external programs from your `PATH`, and handles:
 
 ## Install
 
-Download a standalone binary for macOS or Linux (x64 or arm64) from the [latest release](https://github.com/shameworm/custom-shell/releases/latest). It needs nothing else installed:
+On macOS or Linux (x64 or arm64):
 
 ```bash
-tar -xzf custom-shell-*.tar.gz
-./custom-shell
+curl -fsSL https://raw.githubusercontent.com/shameworm/custom-shell/main/install.sh | sh
 ```
 
-On macOS, a binary downloaded with a browser is quarantined, and since it isn't notarized by Apple, macOS will say it can't verify the developer. Allow it once with `xattr -d com.apple.quarantine custom-shell`, or with **Open Anyway** in System Settings → Privacy & Security.
+This downloads the latest release's standalone binary, checks it against the release's SHA-256 checksums, and installs it to `~/.local/bin`. Set `INSTALL_DIR` to install elsewhere, or `VERSION=v1.0.0` for a specific release. Nothing else (not even Bun) is needed. Because curl doesn't quarantine downloads, macOS runs it without the "can't verify the developer" prompt.
+
+You can also download an archive from the [latest release](https://github.com/shameworm/custom-shell/releases/latest) yourself. A browser marks it as quarantined, and since the binary isn't notarized by Apple, macOS will ask before running it. Allow it once with `xattr -d com.apple.quarantine custom-shell`, or with **Open Anyway** in System Settings → Privacy & Security.
 
 Or run it from source with Bun (see [Getting started](#getting-started)).
 
@@ -286,7 +287,7 @@ The demo GIF is recorded with [VHS](https://github.com/charmbracelet/vhs) from [
 
 ### Releases
 
-CI runs the type checker and tests on Linux and macOS for every push and pull request. Pushing a tag such as `v1.0.0` builds the binaries for all four platforms (the macOS ones ad-hoc signed) and publishes them, with SHA-256 checksums, as a GitHub release.
+CI runs the type checker and tests on Linux and macOS for every push and pull request. Pushing a tag such as `v1.0.0` builds the binaries for all four platforms (the macOS ones ad-hoc signed) and publishes them, with SHA-256 checksums, as a GitHub release. CI also runs `install.sh` against the latest release on Linux and macOS.
 
 ## Project structure
 
