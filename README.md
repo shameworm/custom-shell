@@ -2,7 +2,7 @@
 
 A POSIX-style interactive shell written in TypeScript and running on [Bun](https://bun.com).
 
-It reads commands at a `$ ` prompt, runs builtins and external programs from your `PATH`, handles shell-style quoting, pipelines, redirection, background jobs, command history, and tab completion.
+It reads commands at a `$ ` prompt, runs builtins and external programs from your `PATH`, handles shell-style quoting, variables, pipelines, redirection, background jobs, command history, and tab completion.
 
 ```console
 $ echo 'hello   world' "and \"quotes\""
@@ -33,6 +33,7 @@ $ xyz_
 | `clear` | Clear the screen |
 | `complete` | Manage programmable completion (see below) |
 | `jobs` | List background jobs (see below) |
+| `declare NAME=VALUE` / `declare -p [NAME]` | Set shell variables, or print them |
 | `history [n]` | List previously run commands, or only the last `n` |
 | `history -r/-w/-a <file>` | Read history from a file, write it to one, or append new entries |
 | `exit` | Exit the shell |
@@ -45,6 +46,30 @@ Any other command is looked up in `PATH` and run as an external program. Unknown
 - **Double quotes** `"..."` keep spaces; inside them, `\"` and `\\` are escapes.
 - **Backslash** outside quotes escapes the next character (e.g. `\ ` for a literal space).
 - Adjacent quoted and unquoted parts join into one argument: `'a'"b"c` → `abc`.
+
+### Variables and expansion
+
+`declare` sets shell variables, and `$NAME` or `${NAME}` expands to a variable's value:
+
+```console
+$ declare greeting=hello
+$ declare -p greeting
+declare -- greeting="hello"
+$ echo $greeting ${greeting}world ${missing}world
+hello helloworld world
+$ declare 67=x
+declare: `67=x': not a valid identifier
+```
+
+- Names start with a letter or `_`, followed by letters, digits and `_`.
+- `${NAME}` marks where the name ends: `${greeting}world`, whereas `$greetingworld` is the variable `greetingworld`.
+- An unset variable expands to nothing.
+- Quoting works as in bash:
+  - nothing expands inside single quotes;
+  - inside double quotes the value stays one word;
+  - unquoted, it's split on whitespace into separate words;
+  - `\$` gives a literal `$`.
+- A malformed `${...}` is reported as `bad substitution` and the line isn't run.
 
 ### Redirection
 
@@ -199,8 +224,9 @@ app/
 ├── history.ts           # command history and the history builtin
 ├── jobs.ts              # background job table and jobs output
 ├── pipeline.ts          # runs | pipelines of builtins and external commands
+├── variables.ts         # shell variables and the declare builtin
 └── utils/
-    ├── parseArgs.ts     # tokenizer: quotes and backslash escapes
+    ├── parseArgs.ts     # tokenizer: quotes, escapes and $VAR expansion
     ├── redirect.ts      # parses >, >>, 1>, 1>>, 2>, 2>>
     ├── osPipe.ts        # creates real OS pipes (via a named pipe)
     ├── pathUtils.ts     # PATH lookup, executable search, cd
