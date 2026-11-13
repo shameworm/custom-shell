@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import * as fs from "fs";
 
-import type { Writer } from "./builtins";
+import { builtins, type Writer } from "./builtins";
 import { createPipe } from "./utils/osPipe";
 import { findInPath } from "./utils/pathUtils";
 import { parseRedirect, type RedirectTarget } from "./utils/redirect";
@@ -20,6 +20,11 @@ export function splitPipeline(tokens: string[]): string[][] {
 // one's stdin through an OS pipe, and resolves once every process has
 // exited. The first stage reads the terminal and the last writes to it,
 // unless a stage redirects its own output with > or 2>.
+//
+// Builtins run inside the shell once every process has been started, so
+// their output always has a reader. They don't read stdin, so their input
+// pipe is closed right away: whatever feeds them gets SIGPIPE, and its
+// output is discarded (`ls | type exit` prints only the type line).
 export async function runPipeline(stages: string[][]): Promise<void> {
   if (stages.some((stage) => stage.length === 0)) {
     console.error("syntax error near unexpected token `|'");
@@ -27,6 +32,7 @@ export async function runPipeline(stages: string[][]): Promise<void> {
   }
 
   const exits: Promise<unknown>[] = [];
+  const builtinRuns: (() => void)[] = [];
   let input: number | undefined;
 
   stages.forEach((stage, index) => {
@@ -37,6 +43,20 @@ export async function runPipeline(stages: string[][]): Promise<void> {
     const errFd = openTarget(stderr);
     const outFd = outFile ?? pipe?.[1];
     const err = errorWriter(errFd);
+    const builtin = name !== undefined ? builtins[name] : undefined;
+
+    if (builtin) {
+      closeAll([input]);
+      builtinRuns.push(() => {
+        try {
+          builtin(args, outFd !== undefined ? fdWriter(outFd) : undefined, err);
+        } finally {
+          closeAll([pipe?.[1], outFile, errFd]);
+        }
+      });
+      input = pipe?.[0];
+      return;
+    }
 
     if (name !== undefined && findInPath(name)) {
       const child = spawn(name, args, {
@@ -58,13 +78,31 @@ export async function runPipeline(stages: string[][]): Promise<void> {
 
     // The child has its own copies; the shell must close these so readers
     // see EOF and writers get SIGPIPE when the other side goes away.
-    for (const fd of [input, pipe?.[1], outFile, errFd]) {
-      if (fd !== undefined) fs.closeSync(fd);
-    }
+    closeAll([input, pipe?.[1], outFile, errFd]);
     input = pipe?.[0];
   });
 
+  for (const run of builtinRuns) run();
   await Promise.all(exits);
+}
+
+function closeAll(fds: (number | undefined)[]): void {
+  for (const fd of fds) if (fd !== undefined) fs.closeSync(fd);
+}
+
+// Writes builtin output lines to a pipe or file. If the reader has already
+// exited (EPIPE), the rest of the output is dropped, as SIGPIPE would.
+function fdWriter(fd: number): Writer {
+  let closed = false;
+  return (text) => {
+    if (closed) return;
+    try {
+      fs.writeSync(fd, text + "\n");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EPIPE") throw error;
+      closed = true;
+    }
+  };
 }
 
 function openTarget(target?: RedirectTarget): number | undefined {
