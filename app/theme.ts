@@ -31,10 +31,23 @@ export function paint(text: string, hex: string, bold = false): string {
   return `\x1b[${bold ? "1;" : ""}38;2;${r};${g};${b}m${text}\x1b[0m`;
 }
 
-// The current directory for the prompt, with the home directory as ~.
+// The current directory for the prompt, with the home directory as ~. The
+// current directory is always a real path, so home is compared both as
+// given and resolved: on macOS a HOME under /var is really /private/var.
 export function displayDir(cwd = process.cwd(), home = os.homedir()): string {
-  if (cwd === home) return "~";
-  return cwd.startsWith(home + path.sep) ? "~" + cwd.slice(home.length) : cwd;
+  for (const base of new Set([home, realpath(home)])) {
+    if (cwd === base) return "~";
+    if (cwd.startsWith(base + path.sep)) return "~" + cwd.slice(base.length);
+  }
+  return cwd;
+}
+
+function realpath(file: string): string {
+  try {
+    return fs.realpathSync(file);
+  } catch {
+    return file;
+  }
 }
 
 // The git branch of the repository containing `dir`, read from .git/HEAD

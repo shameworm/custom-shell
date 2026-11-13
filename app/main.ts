@@ -58,6 +58,10 @@ const rl: Interface = createInterface({
           fancy && m.endsWith("/") ? paint(m, palette.softGold) : m,
         );
         process.stdout.write("\n" + shown.join("  ") + "\n");
+        // Readline redraws by first moving up as many rows as the prompt
+        // and input took (prevRows), which would erase the list when a long
+        // prompt wraps. The cursor is on a fresh line now, so that's 0.
+        (rl as Interface & { prevRows?: number }).prevRows = 0;
         rl.prompt(true);
       },
     },

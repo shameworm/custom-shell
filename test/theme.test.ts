@@ -62,6 +62,14 @@ describe("displayDir", () => {
     expect(displayDir("/home/me/code/x", "/home/me")).toBe("~/code/x");
   });
 
+  test("recognises home through a symlink", () => {
+    const real = path.join(tmpDir, "real-home");
+    const link = path.join(tmpDir, "link-home");
+    fs.mkdirSync(path.join(real, "code"), { recursive: true });
+    fs.symlinkSync(real, link);
+    expect(displayDir(path.join(real, "code"), link)).toBe("~/code");
+  });
+
   test("leaves other paths alone, including look-alike prefixes", () => {
     expect(displayDir("/tmp/x", "/home/me")).toBe("/tmp/x");
     expect(displayDir("/home/meadow", "/home/me")).toBe("/home/meadow");
