@@ -6,6 +6,7 @@ import { parseCommandList, runCommandList } from "./commandList";
 import { runCompleter } from "./complete";
 import { history } from "./history";
 import { jobTable } from "./jobs";
+import { runSubshell } from "./subshell";
 import { colorEnabled, fancyPrompt, paint, palette } from "./theme";
 import {
   findExecutablesByPrefix,
@@ -13,6 +14,10 @@ import {
 } from "./utils/pathUtils";
 import { createCompleter } from "./utils/completer";
 import { ShellError } from "./utils/parseArgs";
+
+// Started as a subshell for a background list (see subshell.ts): run it
+// and exit, without an interactive prompt.
+if (process.argv[2] === "--subshell") await runSubshell(process.argv[3]!);
 
 // On a colour terminal the prompt and errors use the theme; otherwise the
 // shell looks exactly like bash ("$ " and plain error text).

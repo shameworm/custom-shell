@@ -6,7 +6,9 @@
   "description": "A POSIX-style interactive shell written in TypeScript on Bun",
   "scripts": {
     "dev": "bun run app/main.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "build": "bun build --compile --minify app/main.ts --outfile dist/custom-shell",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest"
