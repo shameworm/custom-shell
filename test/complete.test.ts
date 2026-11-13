@@ -116,7 +116,12 @@ describe("runCompleter", () => {
     return file;
   }
 
-  const context = { command: "docker", word: "", previous: "docker" };
+  const context = {
+    command: "docker",
+    word: "",
+    previous: "docker",
+    line: "docker ",
+  };
 
   test("returns undefined when no script is registered", () => {
     expect(runCompleter(context)).toBeUndefined();
@@ -140,14 +145,53 @@ describe("runCompleter", () => {
   test("passes the command, current word and previous word as arguments", () => {
     completionSpecs.set("git", script("c", `printf '%s|' "$1" "$2" "$3"`));
     expect(
-      runCompleter({ command: "git", word: "set", previous: "remote" }),
+      runCompleter({
+        command: "git",
+        word: "set",
+        previous: "remote",
+        line: "git remote set",
+      }),
     ).toEqual(["git|set|remote|"]);
   });
 
   test("passes an empty previous word as an empty argument", () => {
     completionSpecs.set("git", script("c", `echo "$#:[$3]"`));
-    expect(runCompleter({ command: "git", word: "x", previous: "" })).toEqual([
-      "3:[]",
-    ]);
+    expect(
+      runCompleter({ command: "git", word: "x", previous: "", line: "git x" }),
+    ).toEqual(["3:[]"]);
+  });
+
+  test("sets COMP_LINE and COMP_POINT for the cursor at the end", () => {
+    completionSpecs.set("git", script("c", `echo "$COMP_LINE|$COMP_POINT"`));
+    expect(
+      runCompleter({
+        command: "git",
+        word: "ad",
+        previous: "git",
+        line: "git ad",
+      }),
+    ).toEqual(["git ad|6"]);
+  });
+
+  test("uses the full line and the cursor offset when they differ", () => {
+    completionSpecs.set("git", script("c", `echo "$COMP_LINE|$COMP_POINT"`));
+    expect(
+      runCompleter(
+        { command: "git", word: "ad", previous: "git", line: "git ad" },
+        "git ad --force",
+      ),
+    ).toEqual(["git ad --force|6"]);
+  });
+
+  test("counts COMP_POINT in bytes, not characters", () => {
+    completionSpecs.set("echo", script("c", `echo "$COMP_POINT"`));
+    expect(
+      runCompleter({
+        command: "echo",
+        word: "é",
+        previous: "echo",
+        line: "echo é",
+      }),
+    ).toEqual(["7"]);
   });
 });

@@ -16,6 +16,8 @@ export interface CompletionContext {
   word: string;
   /** The word just before the one being completed ("" if there is none). */
   previous: string;
+  /** The line up to the cursor. */
+  line: string;
 }
 
 export interface CompletionSources {
@@ -79,17 +81,25 @@ export function createCompleter(sources: CompletionSources, io: CompleterIO) {
 
     const candidates = isCommand
       ? words(sources.commands(word))
-      : argumentCandidates(line.slice(0, start), word);
+      : argumentCandidates(line, start, word);
 
     return [resolve(line, word, candidates), word];
   };
 
-  // `before` is the line up to the word being completed.
-  function argumentCandidates(before: string, word: string): Candidate[] {
-    const preceding = before.trim().split(/\s+/);
+  function argumentCandidates(
+    line: string,
+    start: number,
+    word: string,
+  ): Candidate[] {
+    const preceding = line.slice(0, start).trim().split(/\s+/);
     const command = preceding[0]!;
     const previous = preceding.at(-1) ?? "";
-    const scripted = sources.programmable({ command, word, previous });
+    const scripted = sources.programmable({
+      command,
+      word,
+      previous,
+      line,
+    });
     return scripted ? words(scripted) : sources.paths(word);
   }
 }

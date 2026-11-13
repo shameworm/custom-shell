@@ -287,7 +287,12 @@ describe("completer with a registered completer script", () => {
     complete = makeCompleter([]);
     complete("git remote set");
     expect(contexts).toEqual([
-      { command: "git", word: "set", previous: "remote" },
+      {
+        command: "git",
+        word: "set",
+        previous: "remote",
+        line: "git remote set",
+      },
     ]);
   });
 
@@ -295,6 +300,8 @@ describe("completer with a registered completer script", () => {
     scripts.git = () => [];
     complete = makeCompleter([]);
     complete("git ");
-    expect(contexts).toEqual([{ command: "git", word: "", previous: "git" }]);
+    expect(contexts).toEqual([
+      { command: "git", word: "", previous: "git", line: "git " },
+    ]);
   });
 });
