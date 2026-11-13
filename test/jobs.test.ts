@@ -48,6 +48,13 @@ describe("formatJob", () => {
   });
 });
 
+describe("formatJob for finished jobs", () => {
+  test("shows Done without the trailing &", () => {
+    const job = { id: 1, pid: 1, command: "sleep 1", status: "Done" as const };
+    expect(formatJob(job, "+")).toBe("[1]+  Done                    sleep 1");
+  });
+});
+
 describe("JobTable.report", () => {
   test("is empty when there are no jobs", () => {
     expect(table.report()).toEqual([]);
@@ -78,5 +85,21 @@ describe("JobTable.report", () => {
       "[1]-  Running                 sleep 10 &",
       "[2]+  Running                 sleep 20 &",
     ]);
+  });
+});
+
+describe("JobTable reaping", () => {
+  test("reports a finished job as Done once, then drops it", () => {
+    table.add(100, "sleep 1");
+    table.markDone(100);
+    expect(table.report()).toEqual(["[1]+  Done                    sleep 1"]);
+    expect(table.report()).toEqual([]);
+    expect(table.list()).toEqual([]);
+  });
+
+  test("ignores pids that are not in the table", () => {
+    table.add(100, "sleep 10");
+    table.markDone(999);
+    expect(table.list()[0]?.status).toBe("Running");
   });
 });
