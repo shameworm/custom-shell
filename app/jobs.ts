@@ -4,7 +4,7 @@ export interface Job {
   pid: number;
   /** The command as typed, without the trailing &. */
   command: string;
-  status: "Running";
+  status: "Running" | "Done";
 }
 
 export class JobTable {
@@ -21,9 +21,18 @@ export class JobTable {
     return this.jobs;
   }
 
-  // The `jobs` builtin listing, oldest job first.
+  /** Records that the job's process has exited. */
+  markDone(pid: number): void {
+    const job = this.jobs.find((j) => j.pid === pid);
+    if (job) job.status = "Done";
+  }
+
+  // The `jobs` builtin listing, oldest job first. Finished jobs are shown
+  // as Done this once and then removed from the table.
   report(): string[] {
-    return this.jobs.map((job) => formatJob(job, this.marker(job)));
+    const lines = this.jobs.map((job) => formatJob(job, this.marker(job)));
+    this.jobs = this.jobs.filter((job) => job.status !== "Done");
+    return lines;
   }
 
   // "+" for the most recent job, "-" for the one before it, " " otherwise.
@@ -34,8 +43,10 @@ export class JobTable {
 }
 
 // One line of `jobs` output, e.g. "[1]+  Running                 sleep 10 &".
+// Like bash, only running jobs show the trailing &.
 export function formatJob(job: Job, marker: string): string {
-  return `[${job.id}]${marker}  ${job.status.padEnd(24)}${job.command} &`;
+  const suffix = job.status === "Running" ? " &" : "";
+  return `[${job.id}]${marker}  ${job.status.padEnd(24)}${job.command}${suffix}`;
 }
 
 /** The shell's background jobs. */

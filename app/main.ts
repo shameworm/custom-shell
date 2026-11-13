@@ -102,5 +102,6 @@ function startJob(
   if (child.pid === undefined) return;
 
   const job = jobTable.add(child.pid, command);
+  child.on("exit", () => jobTable.markDone(job.pid));
   console.log(`[${job.id}] ${job.pid}`);
 }
