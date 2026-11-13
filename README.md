@@ -63,6 +63,7 @@ declare: `67=x': not a valid identifier
 
 - Names start with a letter or `_`, followed by letters, digits and `_`.
 - `${NAME}` marks where the name ends: `${greeting}world`, whereas `$greetingworld` is the variable `greetingworld`.
+- Environment variables work too: `$HOME` expands, `declare -p HOME` shows `declare -x HOME="…"`, and `declare PATH=…` changes the `PATH` that commands are looked up in and that child processes see. Variables created with `declare` aren't passed to child processes.
 - An unset variable expands to nothing.
 - Quoting works as in bash:
   - nothing expands inside single quotes;
