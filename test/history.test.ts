@@ -211,4 +211,42 @@ describe("history files", () => {
       ]);
     });
   });
+
+  describe("History.appendFile", () => {
+    test("adds new entries after the file's existing lines", () => {
+      fs.writeFileSync(
+        file,
+        "echo initial_command_1\necho initial_command_2\n",
+      );
+      h.add("echo new_command");
+      h.add("history -a file");
+      h.appendFile(file);
+      expect(fs.readFileSync(file, "utf8")).toBe(
+        "echo initial_command_1\necho initial_command_2\n" +
+          "echo new_command\nhistory -a file\n",
+      );
+    });
+
+    test("only appends entries added since the last append", () => {
+      h.add("one");
+      h.appendFile(file);
+      h.add("two");
+      h.appendFile(file);
+      expect(fs.readFileSync(file, "utf8")).toBe("one\ntwo\n");
+    });
+
+    test("does not re-append entries already written with -w", () => {
+      h.add("one");
+      h.writeFile(file);
+      h.add("two");
+      h.appendFile(file);
+      expect(fs.readFileSync(file, "utf8")).toBe("one\ntwo\n");
+    });
+
+    test("creates the file if needed", () => {
+      h.add("one");
+      h.appendFile(file);
+      expect(fs.readFileSync(file, "utf8")).toBe("one\n");
+    });
+  });
 });

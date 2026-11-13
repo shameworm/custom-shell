@@ -3,6 +3,8 @@ import * as fs from "fs";
 // Commands entered at the prompt, oldest first.
 export class History {
   private entries: string[] = [];
+  /** How many leading entries are already saved to the history file. */
+  private saved = 0;
 
   /** Called for each recorded line, e.g. to make it reachable with the arrow keys. */
   onAdd?: (line: string) => void;
@@ -25,6 +27,13 @@ export class History {
   /** Replaces the file's contents with the whole history, one line each. */
   writeFile(path: string): void {
     fs.writeFileSync(path, toFileText(this.entries));
+    this.saved = this.entries.length;
+  }
+
+  /** Appends the entries not saved yet (by -a or -w) to the file. */
+  appendFile(path: string): void {
+    fs.appendFileSync(path, toFileText(this.entries.slice(this.saved)));
+    this.saved = this.entries.length;
   }
 
   list(): readonly string[] {
@@ -53,6 +62,7 @@ export const history = new History();
 //   history [n]      list the history, or only the last n entries
 //   history -r file  read a history file into the history
 //   history -w file  write the history to a file, replacing its contents
+//   history -a file  append the entries not saved yet to a file
 export function historyBuiltin(
   args: string[],
   out: (line: string) => void,
@@ -84,6 +94,7 @@ export function historyBuiltin(
 const FILE_ACTIONS: Record<string, (path: string) => void> = {
   "-r": (path) => history.readFile(path),
   "-w": (path) => history.writeFile(path),
+  "-a": (path) => history.appendFile(path),
 };
 
 function describe(error: unknown): string {
