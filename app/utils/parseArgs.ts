@@ -28,7 +28,8 @@ export class ShellSyntaxError extends ShellError {
   }
 }
 
-export type Operator = "|" | "&" | ">" | ">>" | "1>" | "1>>" | "2>" | "2>>";
+export type Operator =
+  "|" | "&" | "&&" | "||" | ";" | ">" | ">>" | "1>" | "1>>" | "2>" | "2>>";
 
 // A word (after quote removal and expansion), or an operator. Only an
 // unquoted, unescaped operator character makes an operator, so a quoted
@@ -66,8 +67,8 @@ function readReference(
 // to nothing. An expansion inside double quotes stays part of one word; an
 // unquoted one is split on whitespace, and adds no word at all if it's empty.
 //
-// Unquoted |, &, > and >> are operators even without spaces around them
-// (`a|b`, `sleep 1&`). A 1 or 2 directly before > makes 1> / 2> only when
+// Unquoted |, ||, &, &&, ;, > and >> are operators even without spaces
+// around them (`a|b`, `sleep 1&`, `a&&b`). A 1 or 2 directly before > makes 1> / 2> only when
 // it starts the word, as in bash: `echo a2>f` writes "a2" to f.
 export function parseArgs(
   line: string,
@@ -148,9 +149,15 @@ export function parseArgs(
       continue;
     }
 
-    if (quote === "" && (char === "|" || char === "&")) {
+    if (quote === "" && (char === "|" || char === "&" || char === ";")) {
       endWord();
-      tokens.push({ type: "operator", text: char });
+      // || and && are single operators, not two | or two &.
+      const doubled = char !== ";" && line.charAt(i + 1) === char;
+      tokens.push({
+        type: "operator",
+        text: (doubled ? char + char : char) as Operator,
+      });
+      if (doubled) i++;
       continue;
     }
 

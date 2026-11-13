@@ -293,4 +293,44 @@ describe("parseArgs operators", () => {
   test("an empty quoted word is still a word", () => {
     expect(parseArgs(`echo "" ''`)).toEqual([word("echo"), word(""), word("")]);
   });
+
+  test("reads && and || as single operators, and ; as one", () => {
+    expect(parseArgs("a && b || c ; d")).toEqual([
+      word("a"),
+      op("&&"),
+      word("b"),
+      op("||"),
+      word("c"),
+      op(";"),
+      word("d"),
+    ]);
+    expect(parseArgs("a&&b||c;d")).toEqual([
+      word("a"),
+      op("&&"),
+      word("b"),
+      op("||"),
+      word("c"),
+      op(";"),
+      word("d"),
+    ]);
+  });
+
+  test("keeps | and & single when they are not doubled", () => {
+    expect(parseArgs("a | b & c")).toEqual([
+      word("a"),
+      op("|"),
+      word("b"),
+      op("&"),
+      word("c"),
+    ]);
+  });
+
+  test("quoted list operators are plain words", () => {
+    expect(parseArgs(`echo '&&' "||" \\;`)).toEqual([
+      word("echo"),
+      word("&&"),
+      word("||"),
+      word(";"),
+    ]);
+  });
 });
