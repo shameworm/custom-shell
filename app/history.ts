@@ -24,6 +24,16 @@ export class History {
     }
   }
 
+  /**
+   * Loads the history file at startup. Its lines count as already saved,
+   * so they aren't appended again. A missing file is not an error.
+   */
+  loadFile(path: string): void {
+    if (!fs.existsSync(path)) return;
+    this.readFile(path);
+    this.saved = this.entries.length;
+  }
+
   /** Replaces the file's contents with the whole history, one line each. */
   writeFile(path: string): void {
     fs.writeFileSync(path, toFileText(this.entries));
