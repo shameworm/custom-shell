@@ -1,16 +1,32 @@
 import { createInterface, type Interface } from "readline";
+import { format } from "util";
 
 import { builtins } from "./builtins";
 import { parseCommandList, runCommandList } from "./commandList";
 import { runCompleter } from "./complete";
 import { history } from "./history";
 import { jobTable } from "./jobs";
+import { colorEnabled, fancyPrompt, paint, palette } from "./theme";
 import {
   findExecutablesByPrefix,
   findPathCompletions,
 } from "./utils/pathUtils";
 import { createCompleter } from "./utils/completer";
 import { ShellError } from "./utils/parseArgs";
+
+// On a colour terminal the prompt and errors use the theme; otherwise the
+// shell looks exactly like bash ("$ " and plain error text).
+const fancy = process.stdin.isTTY === true && colorEnabled(process.stdout);
+
+// Bun prints console.error in its own red. Errors use the theme's red
+// instead, and stay plain when stderr isn't a colour terminal.
+console.error = (...args: unknown[]) => {
+  const text = format(...args);
+  const colored = colorEnabled(process.stderr)
+    ? paint(text, palette.red)
+    : text;
+  process.stderr.write(colored + "\n");
+};
 
 const rl: Interface = createInterface({
   input: process.stdin,
@@ -32,7 +48,11 @@ const rl: Interface = createInterface({
     {
       bell: () => process.stdout.write("\x07"),
       list: (matches) => {
-        process.stdout.write("\n" + matches.join("  ") + "\n");
+        // Directories (listed as name/) get the theme's gold.
+        const shown = matches.map((m) =>
+          fancy && m.endsWith("/") ? paint(m, palette.softGold) : m,
+        );
+        process.stdout.write("\n" + shown.join("  ") + "\n");
         rl.prompt(true);
       },
     },
@@ -73,12 +93,18 @@ rl.on("SIGINT", () => {
   // Report finished jobs before clearing the line, which redraws the prompt.
   for (const line of jobTable.reap()) console.log(line);
   rl.write(null, { ctrl: true, name: "u" }); // clear the line
+  lastStatus = INTERRUPTED; // as in bash, where $? is then 130
+  if (fancy) rl.setPrompt(fancyPrompt(lastStatus));
   rl.prompt();
 });
 
 // Shows the prompt, first reporting any background jobs that have finished.
+// The last command's exit status, shown by the prompt's arrow colour.
+let lastStatus = 0;
+
 function prompt() {
   for (const line of jobTable.reap()) console.log(line);
+  if (fancy) rl.setPrompt(fancyPrompt(lastStatus));
   rl.prompt();
 }
 
@@ -103,11 +129,13 @@ async function handleLine(line: string): Promise<void> {
   if (interactive) process.stdin.setRawMode(false);
   try {
     const status = await runCommandList(parseCommandList(line), line);
+    lastStatus = status;
     // The terminal echoes ^C; like bash, end that line before the prompt.
     if (interactive && status === INTERRUPTED) process.stdout.write("\n");
   } catch (error) {
     if (!(error instanceof ShellError)) throw error;
     console.error(error.message);
+    lastStatus = 2;
   } finally {
     if (interactive) process.stdin.setRawMode(true);
     rl.resume();
