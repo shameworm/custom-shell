@@ -1,6 +1,5 @@
 {
   "name": "custom-shell",
-  "module": "index.ts",
   "type": "module",
   "private": true,
   "license": "MIT",
