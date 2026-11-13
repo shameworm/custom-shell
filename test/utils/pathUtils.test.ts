@@ -7,6 +7,7 @@ import {
   changeDirectory,
   findExecutablesByPrefix,
   findInPath,
+  findPathCompletions,
 } from "../../app/utils/pathUtils";
 
 let tmpDir: string;
@@ -172,5 +173,38 @@ describe("findExecutablesByPrefix", () => {
 
     expect(findExecutablesByPrefix("dupcmd")).toEqual(["dupcmd"]);
     fs.rmSync(otherDir, { recursive: true, force: true });
+  });
+});
+
+describe("findPathCompletions", () => {
+  test("lists entries in the current directory that start with the word", () => {
+    fs.writeFileSync(path.join(tmpDir, "readme.txt"), "");
+    fs.writeFileSync(path.join(tmpDir, "report.txt"), "");
+    fs.writeFileSync(path.join(tmpDir, "main.ts"), "");
+    process.chdir(tmpDir);
+
+    expect(
+      findPathCompletions("re")
+        .map((c) => c.value)
+        .sort(),
+    ).toEqual(["readme.txt", "report.txt"]);
+  });
+
+  test("completes files with a trailing space", () => {
+    fs.writeFileSync(path.join(tmpDir, "readme.txt"), "");
+    process.chdir(tmpDir);
+
+    expect(findPathCompletions("re")).toEqual([
+      { value: "readme.txt", suffix: " " },
+    ]);
+  });
+
+  test("hides dotfiles unless the word starts with a dot", () => {
+    fs.writeFileSync(path.join(tmpDir, ".env"), "");
+    fs.writeFileSync(path.join(tmpDir, "env.ts"), "");
+    process.chdir(tmpDir);
+
+    expect(findPathCompletions("").map((c) => c.value)).toEqual(["env.ts"]);
+    expect(findPathCompletions(".").map((c) => c.value)).toEqual([".env"]);
   });
 });
