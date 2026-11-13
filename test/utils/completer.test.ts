@@ -180,3 +180,33 @@ describe("completer filename multiple matches", () => {
     expect(listed).toEqual([["a.ts", "b.ts"]]);
   });
 });
+
+describe("completer filename longest common prefix", () => {
+  beforeEach(() => {
+    complete = makeCompleter(
+      [],
+      [dir("xyz_foo"), dir("xyz_foo_bar"), dir("xyz_foo_bar_baz")],
+    );
+  });
+
+  test("completes step by step, ending with a slash for the directory", () => {
+    expect(complete("ls xyz_")).toEqual([["xyz_foo"], "xyz_"]);
+    expect(complete("ls xyz_foo_")).toEqual([["xyz_foo_bar"], "xyz_foo_"]);
+    expect(complete("ls xyz_foo_bar_")).toEqual([
+      ["xyz_foo_bar_baz/"],
+      "xyz_foo_bar_",
+    ]);
+    expect(bells).toBe(0);
+  });
+
+  test("extends to a shared prefix of files", () => {
+    complete = makeCompleter([], [file("readme.txt"), file("report.txt")]);
+    expect(complete("cat r")).toEqual([["re"], "r"]);
+  });
+
+  test("rings the bell when matches share nothing beyond the input", () => {
+    complete = makeCompleter([], [file("app.py"), file("data.json")]);
+    expect(complete("cat ")).toEqual([[], ""]);
+    expect(bells).toBe(1);
+  });
+});
