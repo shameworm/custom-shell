@@ -2,9 +2,11 @@
 export class History {
   private entries: string[] = [];
 
-  /** Records a line as typed. Blank lines are not recorded. */
-  add(line: string): void {
-    if (line.trim() !== "") this.entries.push(line);
+  /** Records a line as typed; returns false for blank lines, which are skipped. */
+  add(line: string): boolean {
+    if (line.trim() === "") return false;
+    this.entries.push(line);
+    return true;
   }
 
   list(): readonly string[] {

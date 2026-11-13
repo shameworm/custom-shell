@@ -20,6 +20,9 @@ const rl: Interface = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "$ ",
+  // Readline's own recording is off (it skips repeated lines and keeps only
+  // 30); the arrow keys walk rl.history, which is fed from our History.
+  historySize: 0,
   completer: createCompleter(
     {
       commands: (prefix) => [
@@ -40,6 +43,10 @@ const rl: Interface = createInterface({
   ),
 });
 
+// The list the arrow keys step through, newest first. Readline has it at
+// runtime, but @types/node doesn't declare it.
+const arrowHistory = (rl as Interface & { history: string[] }).history;
+
 // Shows the prompt, first reporting any background jobs that have finished.
 function prompt() {
   for (const line of jobTable.reap()) console.log(line);
@@ -50,7 +57,7 @@ prompt();
 
 rl.on("line", (line: string) => {
   // Recorded before running, so `history` lists itself.
-  history.add(line);
+  if (history.add(line)) arrowHistory.unshift(line);
 
   const tokens = parseArgs(line);
   // A trailing & runs the command in the background.

@@ -16,9 +16,13 @@ describe("History", () => {
   });
 
   test("skips blank lines", () => {
-    h.add("");
-    h.add("   ");
+    expect(h.add("")).toBe(false);
+    expect(h.add("   ")).toBe(false);
     expect(h.list()).toEqual([]);
+  });
+
+  test("reports whether a line was recorded", () => {
+    expect(h.add("ls")).toBe(true);
   });
 
   test("keeps repeated commands", () => {
