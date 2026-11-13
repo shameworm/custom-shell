@@ -83,6 +83,32 @@ declare: `67=x': not a valid identifier
 
 Target files are created when they don't exist. Redirection works for builtins and external programs alike, and stdout and stderr can be redirected in the same command.
 
+### Command lists
+
+Run several commands on one line, depending on whether the previous one succeeded:
+
+| Syntax | Effect |
+| --- | --- |
+| `a ; b` | Run `a`, then `b` |
+| `a && b` | Run `b` only if `a` succeeded (exit status 0) |
+| `a \|\| b` | Run `b` only if `a` failed |
+| `a & b` | Start `a` in the background, then run `b` |
+
+```console
+$ make && echo built || echo failed
+$ sleep 2 && echo "Done sleeping" &
+[1] 84470
+```
+
+- The whole line is checked before anything runs, so a syntax error anywhere means nothing on the line runs.
+- Exit statuses follow bash:
+  - a program's own exit code;
+  - 128 + the signal number if a signal killed it;
+  - 127 for an unknown command;
+  - 1 for a builtin that reported an error;
+  - a pipeline's status is its last command's.
+- Operators don't need spaces around them (`a&&b`, `cat f|wc`, `echo hi>out`). Quoted or escaped operator characters are ordinary text.
+
 ### Pipelines
 
 Separate commands with `|` to connect each one's output to the next one's input. Any number of commands can be chained, and builtins can appear anywhere:
@@ -120,6 +146,7 @@ $
 ```
 
 - `+` marks the most recent job and `-` the one before it.
+- A pipeline, an `&&`/`||` list or a builtin started with `&` runs in a subshell (a separate copy of the shell), so the whole thing is one job, and `cd dir &` doesn't change this shell's directory.
 - Finished jobs are reported as `Done` once, either before the next prompt or by `jobs`, whichever comes first, and then removed.
 - Job numbers are reused: a new job gets one more than the highest number still running, or `[1]` when there are none.
 
@@ -221,10 +248,13 @@ bun test           # run the test suite
 app/
 ├── main.ts              # REPL loop: prompt, parse, redirect, dispatch
 ├── builtins.ts          # builtin commands
+├── commandList.ts       # ;, &&, || and & lists: parsing and running
 ├── complete.ts          # complete builtin and completer-script runner
+├── execute.ts           # runs one command; exit statuses; background jobs
 ├── history.ts           # command history and the history builtin
 ├── jobs.ts              # background job table and jobs output
 ├── pipeline.ts          # runs | pipelines of builtins and external commands
+├── subshell.ts          # runs a background list in its own process
 ├── variables.ts         # shell variables and the declare builtin
 └── utils/
     ├── parseArgs.ts     # tokenizer: quotes, escapes and $VAR expansion
