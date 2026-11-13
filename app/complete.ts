@@ -50,20 +50,26 @@ function shellQuote(value: string): string {
 // Runs the completer script registered for the command and returns its
 // stdout lines as candidates, or undefined when no script is registered.
 // Like bash, the script gets the command, the word being completed and the
-// previous word as arguments.
+// previous word as arguments, plus COMP_LINE (the full line) and COMP_POINT
+// (the cursor's byte offset in it) in its environment. `fullLine` defaults to
+// the text up to the cursor, for when the cursor is at the end.
 // A script that cannot be started or runs past the timeout yields no
 // candidates.
-export function runCompleter({
-  command,
-  word,
-  previous,
-}: CompletionContext): string[] | undefined {
+export function runCompleter(
+  { command, word, previous, line }: CompletionContext,
+  fullLine: string = line,
+): string[] | undefined {
   const script = completionSpecs.get(command);
   if (script === undefined) return undefined;
 
   const result = spawnSync(script, [command, word, previous], {
     encoding: "utf8",
     timeout: 5000,
+    env: {
+      ...process.env,
+      COMP_LINE: fullLine,
+      COMP_POINT: String(Buffer.byteLength(line)),
+    },
   });
   if (result.error || typeof result.stdout !== "string") return [];
 

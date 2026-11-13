@@ -1,4 +1,4 @@
-import { createInterface } from "readline";
+import { createInterface, type Interface } from "readline";
 import { spawnSync } from "child_process";
 import * as fs from "fs";
 
@@ -13,7 +13,7 @@ import { createCompleter } from "./utils/completer";
 import { parseArgs } from "./utils/parseArgs";
 import { parseRedirect, type RedirectTarget } from "./utils/redirect";
 
-const rl = createInterface({
+const rl: Interface = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "$ ",
@@ -24,7 +24,8 @@ const rl = createInterface({
         ...findExecutablesByPrefix(prefix),
       ],
       paths: findPathCompletions,
-      programmable: runCompleter,
+      // rl.line is the whole input, even if the cursor isn't at the end.
+      programmable: (context) => runCompleter(context, rl.line),
     },
     {
       bell: () => process.stdout.write("\x07"),
