@@ -16,6 +16,8 @@ export const builtins: Record<string, Builtin> = {
   cd: (args, _out, err = defaultErr) => changeDirectory(args, err),
   complete: (args, out = defaultOut, err = defaultErr) =>
     complete(args, out, err),
+  // Lists background jobs; implemented once jobs are tracked.
+  jobs: () => {},
   type: ([target], out = defaultOut, err = defaultErr) => {
     if (!target) {
       return;
