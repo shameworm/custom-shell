@@ -1,3 +1,4 @@
+import { complete } from "./complete";
 import { changeDirectory, findInPath } from "./utils/pathUtils";
 
 export type Writer = (line: string) => void;
@@ -13,8 +14,8 @@ export const builtins: Record<string, Builtin> = {
   echo: (args, out = defaultOut) => out(args.join(" ")),
   pwd: (_args, out = defaultOut) => out(process.cwd()),
   cd: (args, _out, err = defaultErr) => changeDirectory(args, err),
-  // Programmable completion; flags are added in later commits.
-  complete: () => {},
+  complete: (args, out = defaultOut, err = defaultErr) =>
+    complete(args, out, err),
   type: ([target], out = defaultOut, err = defaultErr) => {
     if (!target) {
       return;
