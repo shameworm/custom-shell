@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 import { History, history, historyBuiltin } from "../app/history";
 
@@ -101,5 +104,71 @@ describe("history builtin", () => {
   test("rejects a negative number as an invalid option", () => {
     run("-1");
     expect(err).toEqual(["history: -1: invalid option"]);
+  });
+});
+
+describe("history files", () => {
+  let tmpDir: string;
+  let file: string;
+  let out: string[];
+  let err: string[];
+  const run = (...args: string[]) =>
+    historyBuiltin(
+      args,
+      (l) => out.push(l),
+      (l) => err.push(l),
+    );
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "shell-test-"));
+    file = path.join(tmpDir, "history.txt");
+    out = [];
+    err = [];
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  describe("History.readFile", () => {
+    test("appends each line of the file, skipping blank ones", () => {
+      fs.writeFileSync(file, "echo hello\necho world\n\n");
+      h.add("history -r file");
+      h.readFile(file);
+      expect(h.format()).toEqual([
+        "    1  history -r file",
+        "    2  echo hello",
+        "    3  echo world",
+      ]);
+    });
+
+    test("notifies onAdd for each line read", () => {
+      fs.writeFileSync(file, "a\nb\n");
+      const seen: string[] = [];
+      h.onAdd = (line) => seen.push(line);
+      h.readFile(file);
+      expect(seen).toEqual(["a", "b"]);
+    });
+  });
+
+  describe("history -r", () => {
+    test("reads the file into the shell history", () => {
+      fs.writeFileSync(file, "echo from-file-xyz\n");
+      run("-r", file);
+      expect(history.list().at(-1)).toBe("echo from-file-xyz");
+      expect(err).toEqual([]);
+    });
+
+    test("reports a missing file", () => {
+      run("-r", path.join(tmpDir, "nope"));
+      expect(err).toEqual([
+        `history: ${path.join(tmpDir, "nope")}: No such file or directory`,
+      ]);
+    });
+
+    test("reports a missing file argument", () => {
+      run("-r");
+      expect(err).toEqual(["history: -r: option requires a file argument"]);
+    });
   });
 });
