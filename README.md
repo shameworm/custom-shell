@@ -2,7 +2,7 @@
 
 A POSIX-style interactive shell written in TypeScript and running on [Bun](https://bun.com).
 
-It reads commands at a `$ ` prompt, runs builtins and external programs from your `PATH`, handles shell-style quoting, pipelines, redirection, background jobs, and tab completion.
+It reads commands at a `$ ` prompt, runs builtins and external programs from your `PATH`, handles shell-style quoting, pipelines, redirection, background jobs, command history, and tab completion.
 
 ```console
 $ echo 'hello   world' "and \"quotes\""
@@ -33,6 +33,7 @@ $ xyz_
 | `clear` | Clear the screen |
 | `complete` | Manage programmable completion (see below) |
 | `jobs` | List background jobs (see below) |
+| `history [n]` | List previously run commands, or only the last `n` |
 | `exit` | Exit the shell |
 
 Any other command is looked up in `PATH` and run as an external program. Unknown commands print `<name>: command not found`.
@@ -94,6 +95,26 @@ $
 - `+` marks the most recent job and `-` the one before it.
 - Finished jobs are reported as `Done` once, either before the next prompt or by `jobs`, whichever comes first, and then removed.
 - Job numbers are reused: a new job gets one more than the highest number still running, or `[1]` when there are none.
+
+### History
+
+Every command you enter is recorded, including invalid ones and `history` itself:
+
+```console
+$ echo hello
+hello
+$ invalid_command
+invalid_command: command not found
+$ history
+    1  echo hello
+    2  invalid_command
+    3  history
+$ history 2
+    3  history
+    4  history 2
+```
+
+Press <kbd>↑</kbd> and <kbd>↓</kbd> to step through the same entries, and <kbd>Enter</kbd> to run the one shown. If you've typed something first, the arrows only step through entries that start with it.
 
 ### Tab completion
 
@@ -160,6 +181,7 @@ app/
 ├── main.ts              # REPL loop: prompt, parse, redirect, dispatch
 ├── builtins.ts          # builtin commands
 ├── complete.ts          # complete builtin and completer-script runner
+├── history.ts           # command history and the history builtin
 ├── jobs.ts              # background job table and jobs output
 ├── pipeline.ts          # runs | pipelines of builtins and external commands
 └── utils/
