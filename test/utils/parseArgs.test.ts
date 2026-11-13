@@ -175,3 +175,23 @@ describe("parseArgs ${NAME} expansion", () => {
     );
   });
 });
+
+describe("parseArgs unset variables", () => {
+  const parse = (line: string) =>
+    parseArgs(line, (name) => (name === "greeting" ? "hello" : undefined));
+
+  test("an unset ${NAME} expands to nothing, keeping the text around it", () => {
+    expect(parse("echo ${greeting}world")).toEqual(["echo", "helloworld"]);
+    expect(parse("echo ${missing}world")).toEqual(["echo", "world"]);
+    expect(parse("echo pre${missing}post")).toEqual(["echo", "prepost"]);
+  });
+
+  test("an unset $NAME on its own adds no word", () => {
+    expect(parse("echo a $missing b")).toEqual(["echo", "a", "b"]);
+    expect(parse("echo ${missing}")).toEqual(["echo"]);
+  });
+
+  test("an unset variable in double quotes still makes an empty word", () => {
+    expect(parse('echo "${missing}" x')).toEqual(["echo", "", "x"]);
+  });
+});
