@@ -46,6 +46,7 @@ const rl: Interface = createInterface({
 // The list the arrow keys step through, newest first. Readline has it at
 // runtime, but @types/node doesn't declare it.
 const arrowHistory = (rl as Interface & { history: string[] }).history;
+history.onAdd = (line) => arrowHistory.unshift(line);
 
 // Shows the prompt, first reporting any background jobs that have finished.
 function prompt() {
@@ -57,7 +58,7 @@ prompt();
 
 rl.on("line", (line: string) => {
   // Recorded before running, so `history` lists itself.
-  if (history.add(line)) arrowHistory.unshift(line);
+  history.add(line);
 
   const tokens = parseArgs(line);
   // A trailing & runs the command in the background.
