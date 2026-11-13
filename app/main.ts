@@ -1,9 +1,10 @@
 import { createInterface, type Interface } from "readline";
-import { spawnSync } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import * as fs from "fs";
 
 import { builtins, type Writer } from "./builtins";
 import { runCompleter } from "./complete";
+import { jobCommand, jobTable } from "./jobs";
 import {
   findExecutablesByPrefix,
   findInPath,
@@ -40,8 +41,13 @@ const rl: Interface = createInterface({
 rl.prompt();
 
 rl.on("line", (line: string) => {
-  const { args: tokens, stdout, stderr } = parseRedirect(parseArgs(line));
-  const [name, ...args] = tokens;
+  const tokens = parseArgs(line);
+  // A trailing & runs the command in the background.
+  const background = tokens.at(-1) === "&";
+  if (background) tokens.pop();
+
+  const { args: words, stdout, stderr } = parseRedirect(tokens);
+  const [name, ...args] = words;
 
   if (!name) {
     rl.prompt();
@@ -61,6 +67,8 @@ rl.on("line", (line: string) => {
     const builtin = builtins[name];
     if (builtin) {
       builtin(args, toFd(outFd), err);
+    } else if (findInPath(name) && background) {
+      startJob(name, args, jobCommand(line), err);
     } else if (findInPath(name)) {
       spawnSync(name, args, {
         stdio: ["inherit", outFd ?? "inherit", errFd ?? "inherit"],
@@ -75,3 +83,14 @@ rl.on("line", (line: string) => {
 
   rl.prompt();
 });
+
+// Starts an external command without waiting for it, records it as a job and
+// reports its job number and pid.
+function startJob(name: string, args: string[], command: string, err: Writer) {
+  const child = spawn(name, args, { stdio: ["ignore", "inherit", "inherit"] });
+  child.on("error", (error) => err(`${name}: ${error.message}`));
+  if (child.pid === undefined) return;
+
+  const job = jobTable.add(child.pid, command);
+  console.log(`[${job.id}] ${job.pid}`);
+}
