@@ -34,6 +34,7 @@ describe("builtins", () => {
       "cd",
       "clear",
       "complete",
+      "declare",
       "echo",
       "exit",
       "history",

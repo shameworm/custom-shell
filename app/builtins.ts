@@ -21,6 +21,8 @@ export const builtins: Record<string, Builtin> = {
   jobs: (_args, out = defaultOut) => jobTable.report().forEach(out),
   history: (args, out = defaultOut, err = defaultErr) =>
     historyBuiltin(args, out, err),
+  // Creates and inspects shell variables; implemented in later commits.
+  declare: () => {},
   type: ([target], out = defaultOut, err = defaultErr) => {
     if (!target) {
       return;
