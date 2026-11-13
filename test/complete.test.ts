@@ -1,6 +1,9 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
-import { complete, completionSpecs } from "../app/complete";
+import { complete, completionSpecs, runCompleter } from "../app/complete";
 
 let out: string[];
 let err: string[];
@@ -92,5 +95,40 @@ describe("complete without names", () => {
   test("rejects unknown options", () => {
     run("-z", "git");
     expect(err).toEqual(["complete: -z: invalid option"]);
+  });
+});
+
+describe("runCompleter", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "shell-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function script(name: string, body: string): string {
+    const file = path.join(tmpDir, name);
+    fs.writeFileSync(file, `#!/bin/sh\n${body}\n`);
+    fs.chmodSync(file, 0o755);
+    return file;
+  }
+
+  const context = { command: "docker", word: "" };
+
+  test("returns undefined when no script is registered", () => {
+    expect(runCompleter(context)).toBeUndefined();
+  });
+
+  test("returns the script's stdout lines", () => {
+    completionSpecs.set("docker", script("c", "echo run"));
+    expect(runCompleter(context)).toEqual(["run"]);
+  });
+
+  test("returns no candidates when the script cannot be run", () => {
+    completionSpecs.set("docker", path.join(tmpDir, "missing"));
+    expect(runCompleter(context)).toEqual([]);
   });
 });

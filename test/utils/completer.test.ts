@@ -1,13 +1,27 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import { type Candidate, createCompleter } from "../../app/utils/completer";
+import {
+  type Candidate,
+  type CompletionContext,
+  createCompleter,
+} from "../../app/utils/completer";
 
 let bells: number;
 let listed: string[][];
 
+let scripts: Record<string, (context: CompletionContext) => string[]>;
+let contexts: CompletionContext[];
+
 function makeCompleter(commands: string[], paths: Candidate[] = []) {
   return createCompleter(
-    { commands: () => commands, paths: () => paths },
+    {
+      commands: () => commands,
+      paths: () => paths,
+      programmable: (context) => {
+        contexts.push(context);
+        return scripts[context.command]?.(context);
+      },
+    },
     {
       bell: () => bells++,
       list: (matches) => listed.push(matches),
@@ -32,6 +46,8 @@ let complete: ReturnType<typeof createCompleter>;
 beforeEach(() => {
   bells = 0;
   listed = [];
+  scripts = {};
+  contexts = [];
   complete = makeCompleter(["echo", "exit", "cd", "clear", "echo"]);
 });
 
@@ -224,5 +240,38 @@ describe("completer in any argument position", () => {
   test("rings the bell for an unmatched later argument", () => {
     expect(complete("ls bar/ foo x")).toEqual([[], "x"]);
     expect(bells).toBe(1);
+  });
+});
+
+describe("completer with a registered completer script", () => {
+  test("completes a single candidate with a trailing space", () => {
+    scripts.docker = () => ["run"];
+    complete = makeCompleter(["docker"], [file("readme.txt")]);
+    expect(complete("docker ")).toEqual([["run "], ""]);
+  });
+
+  test("uses the script instead of filenames", () => {
+    scripts.docker = () => ["run"];
+    complete = makeCompleter([], [file("readme.txt")]);
+    expect(complete("docker r")).toEqual([["run "], "r"]);
+  });
+
+  test("falls back to filenames when no script is registered", () => {
+    complete = makeCompleter([], [file("readme.txt")]);
+    expect(complete("cat r")).toEqual([["readme.txt "], "r"]);
+  });
+
+  test("identifies the command even with leading whitespace", () => {
+    scripts.git = () => [];
+    complete = makeCompleter([]);
+    complete("  git x");
+    expect(contexts[0]?.command).toBe("git");
+  });
+
+  test("is not consulted for the command word itself", () => {
+    scripts.git = () => ["status"];
+    complete = makeCompleter(["git"]);
+    expect(complete("gi")).toEqual([["git "], "gi"]);
+    expect(contexts).toEqual([]);
   });
 });

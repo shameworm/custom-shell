@@ -1,4 +1,7 @@
+import { spawnSync } from "child_process";
+
 import type { Writer } from "./builtins";
+import type { CompletionContext } from "./utils/completer";
 
 /** Completer script registered for each command name via `complete -C`. */
 export const completionSpecs = new Map<string, string>();
@@ -42,4 +45,20 @@ export function complete(args: string[], out: Writer, err: Writer): void {
 // Wraps a value in single quotes so it reads back as one shell word.
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
+// Runs the completer script registered for the command and returns its
+// stdout lines as candidates, or undefined when no script is registered.
+// A script that cannot be started or runs past the timeout yields no
+// candidates.
+export function runCompleter({
+  command,
+}: CompletionContext): string[] | undefined {
+  const script = completionSpecs.get(command);
+  if (script === undefined) return undefined;
+
+  const result = spawnSync(script, [], { encoding: "utf8", timeout: 5000 });
+  if (result.error || typeof result.stdout !== "string") return [];
+
+  return result.stdout.split("\n").filter((line) => line !== "");
 }

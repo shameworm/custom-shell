@@ -9,11 +9,23 @@ export interface Candidate {
   label: string;
 }
 
+export interface CompletionContext {
+  /** The command name: the first word on the line. */
+  command: string;
+  /** The word being completed. */
+  word: string;
+}
+
 export interface CompletionSources {
   /** Command names (builtins and executables) starting with the prefix. */
   commands(prefix: string): string[];
   /** Filesystem entries matching a partially typed path. */
   paths(word: string): Candidate[];
+  /**
+   * Candidates from a completer registered for the command, or undefined
+   * when none is registered (file completion is used instead).
+   */
+  programmable(context: CompletionContext): string[] | undefined;
 }
 
 export interface CompleterIO {
@@ -22,7 +34,8 @@ export interface CompleterIO {
 }
 
 // Completes the word before the cursor: the first word against command
-// names, any later word against filesystem entries.
+// names, any later word against the command's registered completer if it has
+// one, or filesystem entries otherwise.
 // - one match: complete it and append its suffix
 // - several: extend the word to their longest common prefix; if that adds
 //   nothing, the first <TAB> rings the bell and a second <TAB> on the same
@@ -63,15 +76,26 @@ export function createCompleter(sources: CompletionSources, io: CompleterIO) {
     const isCommand = line.slice(0, start).trim() === "";
 
     const candidates = isCommand
-      ? [...new Set(sources.commands(word))].map((name) => ({
-          value: name,
-          suffix: " ",
-          label: name,
-        }))
-      : sources.paths(word);
+      ? words(sources.commands(word))
+      : argumentCandidates(line, word);
 
     return [resolve(line, word, candidates), word];
   };
+
+  function argumentCandidates(line: string, word: string): Candidate[] {
+    const command = line.trimStart().split(/\s+/)[0]!;
+    const scripted = sources.programmable({ command, word });
+    return scripted ? words(scripted) : sources.paths(word);
+  }
+}
+
+// Plain words complete with a trailing space and are listed as-is.
+function words(values: string[]): Candidate[] {
+  return [...new Set(values)].map((value) => ({
+    value,
+    suffix: " ",
+    label: value,
+  }));
 }
 
 function longestCommonPrefix(words: string[]): string {

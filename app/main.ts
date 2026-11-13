@@ -3,6 +3,7 @@ import { spawnSync } from "child_process";
 import * as fs from "fs";
 
 import { builtins, type Writer } from "./builtins";
+import { runCompleter } from "./complete";
 import {
   findExecutablesByPrefix,
   findInPath,
@@ -23,6 +24,7 @@ const rl = createInterface({
         ...findExecutablesByPrefix(prefix),
       ],
       paths: findPathCompletions,
+      programmable: runCompleter,
     },
     {
       bell: () => process.stdout.write("\x07"),
