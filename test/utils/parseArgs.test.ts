@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseArgs } from "../../app/utils/parseArgs";
+import { ExpansionError, parseArgs } from "../../app/utils/parseArgs";
 
 describe("parseArgs", () => {
   test("returns [] for empty and whitespace-only input", () => {
@@ -140,5 +140,38 @@ describe("parseArgs $NAME expansion", () => {
 
   test("without a lookup, every variable is unset", () => {
     expect(parseArgs("echo $HOME x")).toEqual(["echo", "x"]);
+  });
+});
+
+describe("parseArgs ${NAME} expansion", () => {
+  const vars: Record<string, string> = { Var1: "foo", Var2: "bar", sp: "a b" };
+  const parse = (line: string) => parseArgs(line, (name) => vars[name]);
+
+  test("braces mark where the name ends", () => {
+    expect(parse("echo ${Var1}end")).toEqual(["echo", "fooend"]);
+    expect(parse("echo ${Var1}and${Var2}")).toEqual(["echo", "fooandbar"]);
+  });
+
+  test("follows the same quoting rules as $NAME", () => {
+    expect(parse('echo "${sp}"')).toEqual(["echo", "a b"]);
+    expect(parse("echo ${sp}")).toEqual(["echo", "a", "b"]);
+    expect(parse("echo '${Var1}'")).toEqual(["echo", "${Var1}"]);
+    expect(parse("echo \\${Var1}")).toEqual(["echo", "${Var1}"]);
+  });
+
+  test("reports a bad substitution for an invalid or missing name", () => {
+    expect(() => parse("echo ${}")).toThrow(
+      new ExpansionError("${}: bad substitution"),
+    );
+    expect(() => parse("echo ${1x}y")).toThrow(
+      new ExpansionError("${1x}: bad substitution"),
+    );
+    expect(() => parse("echo ${a-b}")).toThrow(ExpansionError);
+  });
+
+  test("reports a missing closing brace", () => {
+    expect(() => parse("echo ${Var1 x")).toThrow(
+      new ExpansionError("${Var1 x: bad substitution"),
+    );
   });
 });
