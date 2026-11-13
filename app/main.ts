@@ -5,6 +5,7 @@ import * as fs from "fs";
 import { builtins, type Writer } from "./builtins";
 import { runCompleter } from "./complete";
 import { jobCommand, jobTable } from "./jobs";
+import { runPipeline, splitPipeline } from "./pipeline";
 import {
   findExecutablesByPrefix,
   findInPath,
@@ -51,6 +52,16 @@ rl.on("line", (line: string) => {
   // A trailing & runs the command in the background.
   const background = tokens.at(-1) === "&";
   if (background) tokens.pop();
+
+  if (tokens.includes("|")) {
+    // Pause input while the pipeline runs, then show the next prompt.
+    rl.pause();
+    runPipeline(splitPipeline(tokens)).finally(() => {
+      rl.resume();
+      prompt();
+    });
+    return;
+  }
 
   const { args: words, stdout, stderr } = parseRedirect(tokens);
   const [name, ...args] = words;
