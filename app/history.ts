@@ -40,9 +40,13 @@ export class History {
     this.saved = this.entries.length;
   }
 
-  /** Appends the entries not saved yet (by -a or -w) to the file. */
+  /**
+   * Appends the entries not saved yet (by -a or -w) to the file, starting
+   * on a new line even if the file's last line has no newline.
+   */
   appendFile(path: string): void {
-    fs.appendFileSync(path, toFileText(this.entries.slice(this.saved)));
+    const text = toFileText(this.entries.slice(this.saved));
+    fs.appendFileSync(path, (endsMidLine(path) ? "\n" : "") + text);
     this.saved = this.entries.length;
   }
 
@@ -58,6 +62,25 @@ export class History {
     return this.entries
       .slice(start)
       .map((line, i) => `${String(start + i + 1).padStart(5)}  ${line}`);
+  }
+}
+
+// True if the file exists, is non-empty, and doesn't end with a newline.
+function endsMidLine(path: string): boolean {
+  let fd: number;
+  try {
+    fd = fs.openSync(path, "r");
+  } catch {
+    return false;
+  }
+  try {
+    const size = fs.fstatSync(fd).size;
+    if (size === 0) return false;
+    const last = Buffer.alloc(1);
+    fs.readSync(fd, last, 0, 1, size - 1);
+    return last[0] !== 0x0a;
+  } finally {
+    fs.closeSync(fd);
   }
 }
 

@@ -49,13 +49,15 @@ const arrowHistory = (rl as Interface & { history: string[] }).history;
 history.onAdd = (line) => arrowHistory.unshift(line);
 
 // HISTFILE names the file history is loaded from at startup and saved to
-// when the shell exits (via exit, Ctrl-D or the end of input).
+// when the shell exits (via exit, Ctrl-D or the end of input). On exit only
+// this session's new entries are appended, so lines another session saved
+// to the file in the meantime are kept.
 const historyFile = process.env.HISTFILE;
 if (historyFile) {
   history.loadFile(historyFile);
   process.on("exit", () => {
     try {
-      history.writeFile(historyFile);
+      history.appendFile(historyFile);
     } catch (error) {
       console.error(`history: ${historyFile}: ${(error as Error).message}`);
     }
