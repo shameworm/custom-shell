@@ -24,7 +24,7 @@ import {
   type Redirect,
   type RedirectTarget,
 } from "./utils/redirect";
-import { shellVariables } from "./variables";
+import { lookupVariable } from "./variables";
 
 const rl: Interface = createInterface({
   input: process.stdin,
@@ -87,7 +87,7 @@ rl.on("line", (line: string) => {
   history.add(line);
 
   try {
-    const tokens = parseArgs(line, (name) => shellVariables.get(name));
+    const tokens = parseArgs(line, lookupVariable);
     // A trailing & runs the command in the background. An & anywhere else
     // would separate commands, which isn't supported yet.
     const background = isOperator(tokens.at(-1), "&");
@@ -142,6 +142,9 @@ function run(line: string, redirect: Redirect, background: boolean) {
       startJob(name, args, jobCommand(line), [outFd, errFd], err);
     } else if (findInPath(name)) {
       spawnSync(name, args, {
+        // Passed explicitly: Bun doesn't hand later process.env changes
+        // (e.g. from declare) to children otherwise.
+        env: process.env,
         stdio: ["inherit", outFd ?? "inherit", errFd ?? "inherit"],
       });
     } else {
@@ -165,6 +168,7 @@ function startJob(
   err: Writer,
 ) {
   const child = spawn(name, args, {
+    env: process.env,
     stdio: ["ignore", outFd ?? "inherit", errFd ?? "inherit"],
   });
   child.on("error", (error) => err(`${name}: ${error.message}`));

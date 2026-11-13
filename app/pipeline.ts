@@ -68,6 +68,7 @@ export async function runPipeline(stages: Token[][]): Promise<void> {
 
     if (name !== undefined && findInPath(name)) {
       const child = spawn(name, args, {
+        env: process.env,
         stdio: [input ?? "inherit", outFd ?? "inherit", errFd ?? "inherit"],
       });
       exits.push(
