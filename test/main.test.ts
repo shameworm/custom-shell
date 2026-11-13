@@ -144,9 +144,63 @@ describe("operators", () => {
   });
 
   test("syntax errors are reported and the shell keeps running", () => {
-    const { stdout, stderr } = shell("echo >\necho a & echo b\necho after\n");
+    const { stdout, stderr } = shell("echo >\necho a ;; echo b\necho after\n");
     expect(stderr).toContain("syntax error near unexpected token `newline'");
-    expect(stderr).toContain("syntax error near unexpected token `&'");
+    expect(stderr).toContain("syntax error near unexpected token `;'");
     expect(stdout).toContain("after\n");
+  });
+});
+
+describe("command lists", () => {
+  test("; runs commands one after another", () => {
+    const { stdout } = shell("echo one; echo two\n");
+    expect(stdout).toContain("one\ntwo\n");
+  });
+
+  test("&& runs the next command only after a success", () => {
+    const { stdout } = shell("true && echo yes\nfalse && echo no\necho done\n");
+    expect(stdout).toContain("yes\n");
+    expect(stdout).not.toContain("no\n");
+  });
+
+  test("|| runs the next command only after a failure", () => {
+    const { stdout } = shell("false || echo rescued\ntrue || echo never\n");
+    expect(stdout).toContain("rescued\n");
+    expect(stdout).not.toContain("never");
+  });
+
+  test("a skipped command keeps the status, so false && a || b runs b", () => {
+    const { stdout } = shell("false && echo a || echo b\n");
+    expect(stdout).toContain("b\n");
+    expect(stdout).not.toContain("a\n");
+  });
+
+  test("builtin and unknown-command failures count as failures", () => {
+    const { stdout } = shell(
+      "cd /no/such/dir || echo cd-failed\nnosuchcmd-xyz || echo not-found\n",
+    );
+    expect(stdout).toContain("cd-failed\n");
+    expect(stdout).toContain("not-found\n");
+  });
+
+  test("pipelines work inside lists", () => {
+    const { stdout } = shell("echo a | tr a b && echo ok\n");
+    expect(stdout).toContain("b\nok\n");
+  });
+
+  test("a syntax error anywhere means nothing on the line runs", () => {
+    const { stdout, stderr } = shell("echo first; echo >\n");
+    expect(stdout).not.toContain("first");
+    expect(stderr).toContain("syntax error near unexpected token `newline'");
+  });
+
+  test("& separates a background command from the next one", () => {
+    const { stdout } = shell("sleep 0 & echo next\n");
+    expect(stdout).toMatch(/\[1\] \d+\n(\$ )?next\n/);
+  });
+
+  test("piped lines run in order even when commands are async", () => {
+    const { stdout } = shell("echo a | cat\necho b\necho c | cat\n");
+    expect(stdout.replace(/\$ /g, "")).toContain("a\nb\nc\n");
   });
 });

@@ -1,23 +1,16 @@
 import { createInterface, type Interface } from "readline";
 
 import { builtins } from "./builtins";
+import { parseCommandList, runCommandList } from "./commandList";
 import { runCompleter } from "./complete";
-import { runCommand } from "./execute";
 import { history } from "./history";
-import { jobCommand, jobTable } from "./jobs";
-import { runPipeline, splitPipeline } from "./pipeline";
+import { jobTable } from "./jobs";
 import {
   findExecutablesByPrefix,
   findPathCompletions,
 } from "./utils/pathUtils";
 import { createCompleter } from "./utils/completer";
-import {
-  parseArgs,
-  ShellError,
-  ShellSyntaxError,
-  type Token,
-} from "./utils/parseArgs";
-import { parseRedirect } from "./utils/redirect";
+import { parseArgs, ShellError } from "./utils/parseArgs";
 import { lookupVariable } from "./variables";
 
 const rl: Interface = createInterface({
@@ -76,38 +69,25 @@ function prompt() {
 
 prompt();
 
+// Lines run strictly one after another, even when input arrives faster
+// than commands finish (e.g. piped in), because commands can be async.
+let queue = Promise.resolve();
 rl.on("line", (line: string) => {
+  queue = queue.then(() => handleLine(line));
+});
+
+async function handleLine(line: string): Promise<void> {
   // Recorded before running, so `history` lists itself.
   history.add(line);
-
+  rl.pause();
   try {
     const tokens = parseArgs(line, lookupVariable);
-    // A trailing & runs the command in the background. An & anywhere else
-    // would separate commands, which isn't supported yet.
-    const background = isOperator(tokens.at(-1), "&");
-    if (background) tokens.pop();
-    if (tokens.some((t) => isOperator(t, "&"))) {
-      throw new ShellSyntaxError("&");
-    }
-
-    if (tokens.some((t) => isOperator(t, "|"))) {
-      // Pause input while the pipeline runs, then show the next prompt.
-      rl.pause();
-      runPipeline(splitPipeline(tokens)).finally(() => {
-        rl.resume();
-        prompt();
-      });
-      return;
-    }
-
-    runCommand(parseRedirect(tokens), background, jobCommand(line));
+    await runCommandList(parseCommandList(tokens), line);
   } catch (error) {
     if (!(error instanceof ShellError)) throw error;
     console.error(error.message);
+  } finally {
+    rl.resume();
+    prompt();
   }
-  prompt();
-});
-
-function isOperator(token: Token | undefined, text: string): boolean {
-  return token?.type === "operator" && token.text === text;
 }
