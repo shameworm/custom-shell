@@ -164,3 +164,36 @@ describe("JobTable.reap", () => {
     expect(table.reap()).toEqual([]);
   });
 });
+
+describe("JobTable job number recycling", () => {
+  test("starts again at 1 once the table is empty", () => {
+    table.add(100, "sleep 1");
+    table.add(101, "sleep 2");
+    table.markDone(100);
+    table.markDone(101);
+    table.reap();
+    expect(table.add(102, "sleep 10").id).toBe(1);
+  });
+
+  test("reuses the number after the highest job still in the table", () => {
+    table.add(100, "sleep 100");
+    table.add(101, "sleep 1");
+    table.markDone(101);
+    table.reap();
+    expect(table.add(102, "sleep 10").id).toBe(2);
+  });
+
+  test("does not fill gaps below the highest number", () => {
+    table.add(100, "sleep 1");
+    table.add(101, "sleep 100");
+    table.markDone(100);
+    table.reap();
+    expect(table.add(102, "sleep 10").id).toBe(3);
+  });
+
+  test("keeps finished jobs' numbers taken until they are reaped", () => {
+    table.add(100, "sleep 1");
+    table.markDone(100);
+    expect(table.add(101, "sleep 10").id).toBe(2);
+  });
+});
