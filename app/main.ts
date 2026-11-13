@@ -68,7 +68,7 @@ rl.on("line", (line: string) => {
     if (builtin) {
       builtin(args, toFd(outFd), err);
     } else if (findInPath(name) && background) {
-      startJob(name, args, jobCommand(line), err);
+      startJob(name, args, jobCommand(line), [outFd, errFd], err);
     } else if (findInPath(name)) {
       spawnSync(name, args, {
         stdio: ["inherit", outFd ?? "inherit", errFd ?? "inherit"],
@@ -85,9 +85,19 @@ rl.on("line", (line: string) => {
 });
 
 // Starts an external command without waiting for it, records it as a job and
-// reports its job number and pid.
-function startJob(name: string, args: string[], command: string, err: Writer) {
-  const child = spawn(name, args, { stdio: ["ignore", "inherit", "inherit"] });
+// reports its job number and pid. The job writes to the shell's terminal
+// unless its output is redirected. It gets no stdin, so it can't compete
+// with the prompt for keyboard input.
+function startJob(
+  name: string,
+  args: string[],
+  command: string,
+  [outFd, errFd]: [number | undefined, number | undefined],
+  err: Writer,
+) {
+  const child = spawn(name, args, {
+    stdio: ["ignore", outFd ?? "inherit", errFd ?? "inherit"],
+  });
   child.on("error", (error) => err(`${name}: ${error.message}`));
   if (child.pid === undefined) return;
 
