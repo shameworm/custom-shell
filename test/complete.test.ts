@@ -78,6 +78,36 @@ describe("complete -C", () => {
   });
 });
 
+describe("complete -r", () => {
+  test("removes a spec silently", () => {
+    run("-C", "/g", "git");
+    run("-r", "git");
+    expect(out).toEqual([]);
+    expect(err).toEqual([]);
+    expect(completionSpecs.has("git")).toBe(false);
+  });
+
+  test("leaves other specs in place", () => {
+    run("-C", "/g", "git");
+    run("-C", "/d", "docker");
+    run("-r", "git");
+    expect([...completionSpecs.keys()]).toEqual(["docker"]);
+  });
+
+  test("reports names that have no spec", () => {
+    run("-r", "git");
+    expect(err).toEqual(["complete: git: no completion specification"]);
+  });
+
+  test("with no names removes every spec", () => {
+    run("-C", "/g", "git");
+    run("-C", "/d", "docker");
+    run("-r");
+    expect(completionSpecs.size).toBe(0);
+    expect(err).toEqual([]);
+  });
+});
+
 describe("complete without names", () => {
   test("-p with no names prints every spec", () => {
     run("-C", "/g", "git");
