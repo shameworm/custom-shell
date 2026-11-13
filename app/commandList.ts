@@ -1,4 +1,7 @@
-import { runCommand } from "./execute";
+import * as path from "path";
+
+import { builtins } from "./builtins";
+import { runCommand, startJob } from "./execute";
 import { jobCommand } from "./jobs";
 import { runPipeline, splitPipeline } from "./pipeline";
 import { ShellSyntaxError, type Token } from "./utils/parseArgs";
@@ -81,10 +84,23 @@ export async function runCommandList(
   return status;
 }
 
+const SUBSHELL = path.join(import.meta.dir, "subshell.ts");
+
 async function runAndOr(list: AndOrList, jobText: string): Promise<number> {
-  const simple = list.rest.length === 0 && !hasPipe(list.first);
-  if (list.background && simple) {
-    return runCommand(parseRedirect(list.first), true, jobText);
+  if (list.background) {
+    // A single external command is started directly, so its own pid is the
+    // job's. Anything else (a pipeline, an and-or list, a builtin) runs in
+    // a subshell process, as in bash; a builtin like cd then can't affect
+    // this shell.
+    if (list.rest.length === 0 && !hasPipe(list.first)) {
+      const redirect = parseRedirect(list.first);
+      const name = redirect.args[0];
+      if (name !== undefined && !builtins[name]) {
+        return runCommand(redirect, true, jobText);
+      }
+    }
+    startJob(process.execPath, [SUBSHELL, JSON.stringify(list)], jobText);
+    return 0;
   }
 
   let status = await runOne(list.first);
