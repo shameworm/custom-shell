@@ -1,10 +1,19 @@
 name: Release
 
-# Push a tag like v1.0.0 to build standalone binaries and publish them as a
-# GitHub release.
+# Push a tag like v1.0.0 (or create a release with a new tag on GitHub) to
+# build standalone binaries and publish them as a GitHub release. It can
+# also be run by hand for an existing tag, e.g. to rebuild its binaries.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and publish binaries for"
+        required: true
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -13,18 +22,22 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     strategy:
+      # One platform failing shouldn't cancel the others.
+      fail-fast: false
       matrix:
         include:
           - { os: ubuntu-latest, target: linux-x64 }
           - { os: ubuntu-latest, target: linux-arm64 }
-          # macOS binaries are built on macOS so they can be signed: Apple
-          # Silicon won't run an unsigned binary, and an ad-hoc signature
-          # is enough for that.
+          # Bun signs the macOS binaries it compiles (Apple Silicon won't
+          # run unsigned code), so no codesign step is needed; re-signing
+          # actually fails, because Bun appends the program after signing.
           - { os: macos-latest, target: darwin-arm64 }
           - { os: macos-latest, target: darwin-x64 }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.13
@@ -34,12 +47,9 @@ jobs:
           mkdir -p dist
           bun build --compile --minify --target=bun-${{ matrix.target }} \
             app/main.ts --outfile dist/custom-shell
-      - name: Sign (macOS)
-        if: runner.os == 'macOS'
-        run: codesign --force --sign - dist/custom-shell
       - name: Package
         run: |
-          name=custom-shell-${{ github.ref_name }}-${{ matrix.target }}
+          name=custom-shell-$TAG-${{ matrix.target }}
           tar -czf "$name.tar.gz" -C dist custom-shell
           echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v4
@@ -60,7 +70,6 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
           # The release may already exist if it was created on GitHub's

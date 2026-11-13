@@ -286,7 +286,7 @@ The demo GIF is recorded with [VHS](https://github.com/charmbracelet/vhs) from [
 
 ### Releases
 
-CI runs the type checker and tests on Linux and macOS for every push and pull request. Pushing a tag such as `v1.0.0` builds the binaries for all four platforms (the macOS ones ad-hoc signed) and publishes them, with SHA-256 checksums, as a GitHub release.
+CI runs the type checker and tests on Linux and macOS for every push and pull request. Pushing a tag such as `v1.0.0` builds the binaries for all four platforms (Bun signs the macOS ones) and publishes them, with SHA-256 checksums, as a GitHub release.
 
 ## Project structure
 
