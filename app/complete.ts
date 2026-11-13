@@ -49,15 +49,22 @@ function shellQuote(value: string): string {
 
 // Runs the completer script registered for the command and returns its
 // stdout lines as candidates, or undefined when no script is registered.
+// Like bash, the script gets the command, the word being completed and the
+// previous word as arguments.
 // A script that cannot be started or runs past the timeout yields no
 // candidates.
 export function runCompleter({
   command,
+  word,
+  previous,
 }: CompletionContext): string[] | undefined {
   const script = completionSpecs.get(command);
   if (script === undefined) return undefined;
 
-  const result = spawnSync(script, [], { encoding: "utf8", timeout: 5000 });
+  const result = spawnSync(script, [command, word, previous], {
+    encoding: "utf8",
+    timeout: 5000,
+  });
   if (result.error || typeof result.stdout !== "string") return [];
 
   return result.stdout.split("\n").filter((line) => line !== "");
