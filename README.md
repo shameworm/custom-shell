@@ -32,6 +32,7 @@ $ xyz_
 | `type <name>` | Say whether a name is a builtin or the path of an executable |
 | `clear` | Clear the screen |
 | `complete` | Manage programmable completion (see below) |
+| `jobs` | List background jobs (see below) |
 | `exit` | Exit the shell |
 
 Any other command is looked up in `PATH` and run as an external program. Unknown commands print `<name>: command not found`.
@@ -53,6 +54,28 @@ Any other command is looked up in `PATH` and run as an external program. Unknown
 | `2>>` | Append stderr to a file |
 
 Target files are created when they don't exist. Redirection works for builtins and external programs alike, and stdout and stderr can be redirected in the same command.
+
+### Background jobs
+
+End a command with `&` to run it in the background. The shell prints the job number and process ID and returns to the prompt right away. The job's output still goes to the terminal unless it is redirected.
+
+```console
+$ sleep 10 &
+[1] 84470
+$ sleep 20 &
+[2] 84471
+$ jobs
+[1]-  Running                 sleep 10 &
+[2]+  Running                 sleep 20 &
+$ echo hello
+hello
+[1]-  Done                    sleep 10
+$
+```
+
+- `+` marks the most recent job and `-` the one before it.
+- Finished jobs are reported as `Done` once, either before the next prompt or by `jobs`, whichever comes first, and then removed.
+- Job numbers are reused: a new job gets one more than the highest number still running, or `[1]` when there are none.
 
 ### Tab completion
 
@@ -119,6 +142,7 @@ app/
 ├── main.ts              # REPL loop: prompt, parse, redirect, dispatch
 ├── builtins.ts          # builtin commands
 ├── complete.ts          # complete builtin and completer-script runner
+├── jobs.ts              # background job table and jobs output
 └── utils/
     ├── parseArgs.ts     # tokenizer: quotes and backslash escapes
     ├── redirect.ts      # parses >, >>, 1>, 1>>, 2>, 2>>
