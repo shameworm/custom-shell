@@ -116,7 +116,7 @@ describe("runCompleter", () => {
     return file;
   }
 
-  const context = { command: "docker", word: "" };
+  const context = { command: "docker", word: "", previous: "docker" };
 
   test("returns undefined when no script is registered", () => {
     expect(runCompleter(context)).toBeUndefined();
@@ -135,5 +135,19 @@ describe("runCompleter", () => {
   test("returns no candidates when the script prints nothing", () => {
     completionSpecs.set("docker", script("c", "exit 0"));
     expect(runCompleter(context)).toEqual([]);
+  });
+
+  test("passes the command, current word and previous word as arguments", () => {
+    completionSpecs.set("git", script("c", `printf '%s|' "$1" "$2" "$3"`));
+    expect(
+      runCompleter({ command: "git", word: "set", previous: "remote" }),
+    ).toEqual(["git|set|remote|"]);
+  });
+
+  test("passes an empty previous word as an empty argument", () => {
+    completionSpecs.set("git", script("c", `echo "$#:[$3]"`));
+    expect(runCompleter({ command: "git", word: "x", previous: "" })).toEqual([
+      "3:[]",
+    ]);
   });
 });

@@ -281,4 +281,20 @@ describe("completer with a registered completer script", () => {
     expect(complete("docker xyz")).toEqual([[], "xyz"]);
     expect(bells).toBe(1);
   });
+
+  test("passes the command, current word and previous word", () => {
+    scripts.git = () => [];
+    complete = makeCompleter([]);
+    complete("git remote set");
+    expect(contexts).toEqual([
+      { command: "git", word: "set", previous: "remote" },
+    ]);
+  });
+
+  test("uses the command as the previous word for the first argument", () => {
+    scripts.git = () => [];
+    complete = makeCompleter([]);
+    complete("git ");
+    expect(contexts).toEqual([{ command: "git", word: "", previous: "git" }]);
+  });
 });

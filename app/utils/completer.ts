@@ -14,6 +14,8 @@ export interface CompletionContext {
   command: string;
   /** The word being completed. */
   word: string;
+  /** The word just before the one being completed ("" if there is none). */
+  previous: string;
 }
 
 export interface CompletionSources {
@@ -77,14 +79,17 @@ export function createCompleter(sources: CompletionSources, io: CompleterIO) {
 
     const candidates = isCommand
       ? words(sources.commands(word))
-      : argumentCandidates(line, word);
+      : argumentCandidates(line.slice(0, start), word);
 
     return [resolve(line, word, candidates), word];
   };
 
-  function argumentCandidates(line: string, word: string): Candidate[] {
-    const command = line.trimStart().split(/\s+/)[0]!;
-    const scripted = sources.programmable({ command, word });
+  // `before` is the line up to the word being completed.
+  function argumentCandidates(before: string, word: string): Candidate[] {
+    const preceding = before.trim().split(/\s+/);
+    const command = preceding[0]!;
+    const previous = preceding.at(-1) ?? "";
+    const scripted = sources.programmable({ command, word, previous });
     return scripted ? words(scripted) : sources.paths(word);
   }
 }
