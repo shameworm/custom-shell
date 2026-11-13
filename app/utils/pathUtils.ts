@@ -71,18 +71,24 @@ export function findExecutablesByPrefix(prefix: string): string[] {
   return [...found];
 }
 
-// Entries in the current directory whose name starts with `word`.
-// Hidden entries are only offered when the word itself starts with a dot.
+// Filesystem entries matching a partially typed path. The word is split at
+// its last "/": the part before is the directory to search (the current
+// directory if there is none), the part after is the name prefix to match.
+// Hidden entries are only offered when the prefix itself starts with a dot.
 export function findPathCompletions(word: string): Candidate[] {
+  const slash = word.lastIndexOf("/");
+  const dir = word.slice(0, slash + 1);
+  const prefix = word.slice(slash + 1);
+
   let entries: string[];
   try {
-    entries = fs.readdirSync(".");
+    entries = fs.readdirSync(dir || ".");
   } catch {
     return [];
   }
 
   return entries
-    .filter((name) => name.startsWith(word))
-    .filter((name) => word.startsWith(".") || !name.startsWith("."))
-    .map((name) => ({ value: name, suffix: " " }));
+    .filter((name) => name.startsWith(prefix))
+    .filter((name) => prefix.startsWith(".") || !name.startsWith("."))
+    .map((name) => ({ value: dir + name, suffix: " " }));
 }

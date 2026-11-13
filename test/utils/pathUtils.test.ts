@@ -207,4 +207,40 @@ describe("findPathCompletions", () => {
     expect(findPathCompletions("").map((c) => c.value)).toEqual(["env.ts"]);
     expect(findPathCompletions(".").map((c) => c.value)).toEqual([".env"]);
   });
+
+  test("completes inside a nested directory, keeping the typed path", () => {
+    fs.mkdirSync(path.join(tmpDir, "path", "to"), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, "path", "to", "file.txt"), "");
+    process.chdir(tmpDir);
+
+    expect(findPathCompletions("path/to/f")).toEqual([
+      { value: "path/to/file.txt", suffix: " " },
+    ]);
+  });
+
+  test("lists everything in a directory when the prefix is empty", () => {
+    fs.mkdirSync(path.join(tmpDir, "sub"));
+    fs.writeFileSync(path.join(tmpDir, "sub", "a.txt"), "");
+    fs.writeFileSync(path.join(tmpDir, "sub", "b.txt"), "");
+    process.chdir(tmpDir);
+
+    expect(
+      findPathCompletions("sub/")
+        .map((c) => c.value)
+        .sort(),
+    ).toEqual(["sub/a.txt", "sub/b.txt"]);
+  });
+
+  test("works with absolute paths", () => {
+    fs.writeFileSync(path.join(tmpDir, "abs.txt"), "");
+
+    expect(findPathCompletions(path.join(tmpDir, "ab"))).toEqual([
+      { value: path.join(tmpDir, "abs.txt"), suffix: " " },
+    ]);
+  });
+
+  test("returns nothing for a directory that does not exist", () => {
+    process.chdir(tmpDir);
+    expect(findPathCompletions("missing/f")).toEqual([]);
+  });
 });
