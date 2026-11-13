@@ -59,4 +59,24 @@ describe("JobTable.report", () => {
       "[1]+  Running                 sleep 10 &",
     ]);
   });
+
+  test("marks the current job + and the previous job -", () => {
+    table.add(100, "sleep 10");
+    table.add(101, "sleep 20");
+    table.add(102, "sleep 30");
+    expect(table.report()).toEqual([
+      "[1]   Running                 sleep 10 &",
+      "[2]-  Running                 sleep 20 &",
+      "[3]+  Running                 sleep 30 &",
+    ]);
+  });
+
+  test("with two jobs, the older one is -", () => {
+    table.add(100, "sleep 10");
+    table.add(101, "sleep 20");
+    expect(table.report()).toEqual([
+      "[1]-  Running                 sleep 10 &",
+      "[2]+  Running                 sleep 20 &",
+    ]);
+  });
 });
