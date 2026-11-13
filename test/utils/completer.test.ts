@@ -1,16 +1,21 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import { createCompleter } from "../../app/utils/completer";
+import { type Candidate, createCompleter } from "../../app/utils/completer";
 
 let bells: number;
 let listed: string[][];
 
-function makeCompleter(candidates: string[]) {
-  return createCompleter(() => candidates, {
-    bell: () => bells++,
-    list: (matches) => listed.push(matches),
-  });
+function makeCompleter(commands: string[], paths: Candidate[] = []) {
+  return createCompleter(
+    { commands: () => commands, paths: () => paths },
+    {
+      bell: () => bells++,
+      list: (matches) => listed.push(matches),
+    },
+  );
 }
+
+const file = (value: string): Candidate => ({ value, suffix: " " });
 
 let complete: ReturnType<typeof createCompleter>;
 
@@ -40,8 +45,10 @@ describe("completer", () => {
     expect(complete("ech")).toEqual([["echo "], "ech"]);
   });
 
-  test("does not complete arguments", () => {
-    expect(complete("echo ex")).toEqual([[], "echo ex"]);
+  test("completes later words from paths, not commands", () => {
+    complete = makeCompleter(["exit"], [file("readme.txt")]);
+    expect(complete("cat re")).toEqual([["readme.txt "], "re"]);
+    expect(complete("cat ex")).toEqual([[], "ex"]);
   });
 });
 
@@ -92,5 +99,22 @@ describe("completer longest common prefix", () => {
   test("falls back to bell when the prefix cannot be extended", () => {
     expect(complete("xyz_foo")).toEqual([[], "xyz_foo"]);
     expect(bells).toBe(1);
+  });
+});
+
+describe("completer filename completion", () => {
+  test("completes a file name with a trailing space", () => {
+    complete = makeCompleter([], [file("readme.txt"), file("main.ts")]);
+    expect(complete("cat re")).toEqual([["readme.txt "], "re"]);
+  });
+
+  test("completes the word after the last space", () => {
+    complete = makeCompleter([], [file("readme.txt")]);
+    expect(complete("echo   hi  re")).toEqual([["readme.txt "], "re"]);
+  });
+
+  test("treats leading whitespace as part of the command position", () => {
+    complete = makeCompleter(["echo"], [file("echo.txt")]);
+    expect(complete("  ech")).toEqual([["echo "], "ech"]);
   });
 });

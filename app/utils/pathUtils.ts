@@ -2,6 +2,8 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 
+import type { Candidate } from "./completer";
+
 export function findInPath(command: string) {
   const directories = (process.env.PATH || "").split(path.delimiter);
 
@@ -67,4 +69,20 @@ export function findExecutablesByPrefix(prefix: string): string[] {
   }
 
   return [...found];
+}
+
+// Entries in the current directory whose name starts with `word`.
+// Hidden entries are only offered when the word itself starts with a dot.
+export function findPathCompletions(word: string): Candidate[] {
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(".");
+  } catch {
+    return [];
+  }
+
+  return entries
+    .filter((name) => name.startsWith(word))
+    .filter((name) => word.startsWith(".") || !name.startsWith("."))
+    .map((name) => ({ value: name, suffix: " " }));
 }
