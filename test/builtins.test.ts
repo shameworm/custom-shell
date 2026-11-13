@@ -93,7 +93,7 @@ describe("builtins", () => {
 
     builtins.type!(["cd"]);
 
-    expect(log).toHaveBeenCalledWith("cd is shell builtin command");
+    expect(log).toHaveBeenCalledWith("cd is a shell builtin");
     log.mockRestore();
   });
 

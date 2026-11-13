@@ -8,7 +8,7 @@ It reads commands at a `$ ` prompt, runs builtins and external programs from you
 $ echo 'hello   world' "and \"quotes\""
 hello   world and "quotes"
 $ type echo
-echo is shell builtin command
+echo is a shell builtin
 $ ls /nonexistent 2>> errors.txt
 $ echo first > out.txt
 $ echo second >> out.txt
