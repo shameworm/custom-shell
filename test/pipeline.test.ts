@@ -153,3 +153,31 @@ describe("runPipeline syntax errors", () => {
     expect((await run("echo a|tr a b")).trim()).toBe("b");
   });
 });
+
+describe("runPipeline exit status", () => {
+  const status = (line: string) => runPipeline(splitPipeline(parseArgs(line)));
+
+  test("is the status of the last stage", async () => {
+    expect(await status("false | true")).toBe(0);
+    expect(await status("true | false")).toBe(1);
+    expect(await status("echo hi | sh -c 'cat >/dev/null; exit 4'")).toBe(4);
+  });
+
+  test("is 127 when the last command is unknown", async () => {
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    expect(await status("true | nosuchcmd-xyz")).toBe(127);
+    error.mockRestore();
+  });
+
+  test("follows a builtin in the last stage", async () => {
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    expect(await status("true | type nosuch-xyz")).toBe(1);
+    error.mockRestore();
+  });
+
+  test("is 2 for a syntax error", async () => {
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    expect(await status("ls |")).toBe(2);
+    error.mockRestore();
+  });
+});
