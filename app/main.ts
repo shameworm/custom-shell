@@ -61,6 +61,20 @@ if (historyFile) {
   });
 }
 
+// Interactive use: the shell itself ignores Ctrl-C (SIGINT). At the prompt
+// readline reports it as a keypress instead; while a command runs, the
+// terminal delivers it to the command, which stops, and the shell carries on.
+const interactive = process.stdin.isTTY === true;
+if (interactive) process.on("SIGINT", () => {});
+
+// Ctrl-C at the prompt discards the typed line and starts a fresh one.
+rl.on("SIGINT", () => {
+  rl.write(null, { ctrl: true, name: "e" }); // move to the end of the line
+  process.stdout.write("^C\n");
+  rl.write(null, { ctrl: true, name: "u" }); // clear the line
+  prompt();
+});
+
 // Shows the prompt, first reporting any background jobs that have finished.
 function prompt() {
   for (const line of jobTable.reap()) console.log(line);
@@ -68,6 +82,9 @@ function prompt() {
 }
 
 prompt();
+
+/** Exit status of a command stopped by Ctrl-C: 128 + SIGINT (2). */
+const INTERRUPTED = 130;
 
 // Lines run strictly one after another, even when input arrives faster
 // than commands finish (e.g. piped in), because commands can be async.
@@ -80,13 +97,19 @@ async function handleLine(line: string): Promise<void> {
   // Recorded before running, so `history` lists itself.
   history.add(line);
   rl.pause();
+  // Readline keeps the terminal in raw mode, where Ctrl-C is just a byte.
+  // Commands run with it in normal mode, so Ctrl-C sends them SIGINT.
+  if (interactive) process.stdin.setRawMode(false);
   try {
     const tokens = parseArgs(line, lookupVariable);
-    await runCommandList(parseCommandList(tokens), line);
+    const status = await runCommandList(parseCommandList(tokens), line);
+    // The terminal echoes ^C; like bash, end that line before the prompt.
+    if (interactive && status === INTERRUPTED) process.stdout.write("\n");
   } catch (error) {
     if (!(error instanceof ShellError)) throw error;
     console.error(error.message);
   } finally {
+    if (interactive) process.stdin.setRawMode(true);
     rl.resume();
     prompt();
   }
