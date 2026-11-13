@@ -4,53 +4,66 @@ import { builtins } from "./builtins";
 import { runCommand, startSubshellJob } from "./execute";
 import { jobCommand } from "./jobs";
 import { runPipeline, splitPipeline } from "./pipeline";
-import { ShellSyntaxError, type Token } from "./utils/parseArgs";
+import { parseArgs, ShellSyntaxError, type Token } from "./utils/parseArgs";
 import { parseRedirect } from "./utils/redirect";
+import { lookupVariable, shellVariables } from "./variables";
 
-// Pipelines joined by && and ||, e.g. `make && make test || echo failed`.
+// Pipelines joined by && and ||, e.g. `make && make test || echo failed`,
+// each kept as its source text: like bash, a command is expanded only when
+// it's about to run, so `declare x=1; echo $x` sees the new value.
 // `background` is set when the list ends with &.
 export interface AndOrList {
-  first: Token[];
-  rest: { op: "&&" | "||"; pipeline: Token[] }[];
+  first: string;
+  rest: { op: "&&" | "||"; pipeline: string }[];
   background: boolean;
 }
 
-// Splits a line's tokens into and-or lists separated by ; or &. The whole
-// line is checked first, as bash does, so a syntax error anywhere means
-// nothing runs: an operator with no command before it, a line ending in
-// && or ||, an empty pipeline stage, or a redirect with no file.
-export function parseCommandList(tokens: Token[]): AndOrList[] {
+// Splits a line into and-or lists separated by ; or &. The whole line is
+// checked first, as bash does, so a syntax error anywhere means nothing
+// runs: an operator with no command before it, a line ending in && or ||,
+// an empty pipeline stage, a redirect with no file, or a bad ${...}.
+export function parseCommandList(line: string): AndOrList[] {
+  // Variables are left as written ($NAME) here: this pass only finds the
+  // structure, which expansion can't change (values never become operators).
+  const positions: { start: number; end: number }[] = [];
+  const tokens = parseArgs(line, (name) => `$${name}`, positions);
+
   const lists: AndOrList[] = [];
-  let pipeline: Token[] = [];
+  let pipelineStart = 0;
   let list: AndOrList | undefined;
   let pending: "&&" | "||" | undefined;
 
-  const addPipeline = (next: string) => {
-    if (pipeline.length === 0) throw new ShellSyntaxError(next);
-    checkPipeline(pipeline);
-    if (!list) list = { first: pipeline, rest: [], background: false };
-    else list.rest.push({ op: pending!, pipeline });
-    pipeline = [];
+  // Ends the pipeline made of tokens[pipelineStart..end), at an operator
+  // (or the end of the line) whose text is `next`.
+  const addPipeline = (end: number, next: string) => {
+    if (end === pipelineStart) throw new ShellSyntaxError(next);
+    checkPipeline(tokens.slice(pipelineStart, end));
+    const source = line.slice(
+      positions[pipelineStart]!.start,
+      positions[end - 1]!.end,
+    );
+    if (!list) list = { first: source, rest: [], background: false };
+    else list.rest.push({ op: pending!, pipeline: source });
   };
 
-  for (const token of tokens) {
-    if (token.type !== "operator") {
-      pipeline.push(token);
-    } else if (token.text === "&&" || token.text === "||") {
-      addPipeline(token.text);
+  tokens.forEach((token, index) => {
+    if (token.type !== "operator") return;
+    if (token.text === "&&" || token.text === "||") {
+      addPipeline(index, token.text);
       pending = token.text;
     } else if (token.text === ";" || token.text === "&") {
-      addPipeline(token.text);
+      addPipeline(index, token.text);
       list!.background = token.text === "&";
       lists.push(list!);
       list = undefined;
     } else {
-      pipeline.push(token);
+      return; // | and redirects belong to the pipeline
     }
-  }
+    pipelineStart = index + 1;
+  });
 
-  if (pipeline.length > 0) {
-    addPipeline("newline");
+  if (pipelineStart < tokens.length) {
+    addPipeline(tokens.length, "newline");
     lists.push(list!);
   } else if (list) {
     // The line ended right after && or ||.
@@ -86,20 +99,27 @@ export async function runCommandList(
 
 const SUBSHELL = path.join(import.meta.dir, "subshell.ts");
 
+/** What a subshell process receives: the list and this shell's variables. */
+export interface SubshellInput {
+  list: AndOrList;
+  variables: [string, string][];
+}
+
 async function runAndOr(list: AndOrList, jobText: string): Promise<number> {
   if (list.background) {
     // A single external command is started directly, so its own pid is the
     // job's. Anything else (a pipeline, an and-or list, a builtin) runs in
     // a subshell process, as in bash; a builtin like cd then can't affect
-    // this shell.
-    if (list.rest.length === 0 && !hasPipe(list.first)) {
-      const redirect = parseRedirect(list.first);
-      const name = redirect.args[0];
-      if (name !== undefined && !builtins[name]) {
-        return runCommand(redirect, true, jobText);
+    // this shell. The subshell gets a copy of the variables, as in bash.
+    if (list.rest.length === 0) {
+      const tokens = parseArgs(list.first, lookupVariable);
+      const name = tokens[0]?.text;
+      if (!hasPipe(tokens) && name !== undefined && !builtins[name]) {
+        return runCommand(parseRedirect(tokens), true, jobText);
       }
     }
-    startSubshellJob([SUBSHELL, JSON.stringify(list)], jobText);
+    const input: SubshellInput = { list, variables: [...shellVariables] };
+    startSubshellJob([SUBSHELL, JSON.stringify(input)], jobText);
     return 0;
   }
 
@@ -111,30 +131,21 @@ async function runAndOr(list: AndOrList, jobText: string): Promise<number> {
   return status;
 }
 
-function runOne(pipeline: Token[]): number | Promise<number> {
-  if (hasPipe(pipeline)) return runPipeline(splitPipeline(pipeline));
-  return runCommand(parseRedirect(pipeline), false, "");
+// Expands one pipeline's source text, now, and runs it.
+function runOne(source: string): number | Promise<number> {
+  const tokens = parseArgs(source, lookupVariable);
+  if (hasPipe(tokens)) return runPipeline(splitPipeline(tokens));
+  return runCommand(parseRedirect(tokens), false, "");
 }
 
 function hasPipe(tokens: Token[]): boolean {
   return tokens.some((t) => t.type === "operator" && t.text === "|");
 }
 
-// An and-or list written back out as text, for naming a background job
-// when the line held several commands.
+// An and-or list as text, for naming a background job when the line held
+// several commands: each pipeline as typed, joined by its operators.
 export function listText(list: AndOrList): string {
-  const parts = [tokensText(list.first)];
-  for (const { op, pipeline } of list.rest)
-    parts.push(op, tokensText(pipeline));
+  const parts = [list.first];
+  for (const { op, pipeline } of list.rest) parts.push(op, pipeline);
   return parts.join(" ");
-}
-
-function tokensText(tokens: Token[]): string {
-  return tokens
-    .map((t) =>
-      t.type === "operator" || /^[\w@%+=:,./-]+$/.test(t.text)
-        ? t.text
-        : `'${t.text.replaceAll("'", `'\\''`)}'`,
-    )
-    .join(" ");
 }

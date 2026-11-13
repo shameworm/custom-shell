@@ -254,3 +254,33 @@ describe("Ctrl-C (SIGINT)", () => {
     expect(signal).toBe("SIGINT");
   });
 });
+
+describe("expansion happens per command, when it runs", () => {
+  test("a variable set earlier on the line is seen by later commands", () => {
+    const { stdout } = shell(
+      "declare x=1; echo [$x]\ndeclare y=2 && echo [$y]\n",
+    );
+    expect(stdout).toContain("[1]\n");
+    expect(stdout).toContain("[2]\n");
+  });
+
+  test("a command word can come from a variable set on the same line", () => {
+    const { stdout } = shell("declare cmd=echo; $cmd hello\n");
+    expect(stdout).toContain("hello\n");
+  });
+
+  test("an environment change reaches a later command on the line", () => {
+    const { stdout } = shell(
+      "declare CUSTOM_SHELL_E2E=new; sh -c 'echo child:$CUSTOM_SHELL_E2E'\n",
+      { CUSTOM_SHELL_E2E: "old" },
+    );
+    expect(stdout).toContain("child:new\n");
+  });
+
+  test("a background subshell sees this shell's variables", async () => {
+    const out = path.join(tmpDir, "out.txt");
+    shell(`declare v=from-parent\necho $v > ${out} &\n`);
+    await waitForFile(out);
+    expect(fs.readFileSync(out, "utf8")).toBe("from-parent\n");
+  });
+});

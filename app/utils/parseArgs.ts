@@ -68,13 +68,24 @@ function readReference(
 // unquoted one is split on whitespace, and adds no word at all if it's empty.
 //
 // Unquoted |, ||, &, &&, ;, > and >> are operators even without spaces
-// around them (`a|b`, `sleep 1&`, `a&&b`). A 1 or 2 directly before > makes 1> / 2> only when
-// it starts the word, as in bash: `echo a2>f` writes "a2" to f.
+// around them (`a|b`, `sleep 1&`, `a&&b`). A 1 or 2 directly before > makes
+// 1> / 2> only when it starts the word, as in bash: `echo a2>f` writes "a2"
+// to f.
+//
+// If `positions` is given, it receives each token's span in `line`, so a
+// caller can cut out the source text of part of the line.
 export function parseArgs(
   line: string,
   lookup: VariableLookup = () => undefined,
+  positions?: { start: number; end: number }[],
 ): Token[] {
   const tokens: Token[] = [];
+  // Index of the character being read, for recording token spans.
+  let pos = 0;
+  const push = (token: Token, start: number, end: number) => {
+    tokens.push(token);
+    positions?.push({ start, end });
+  };
 
   let current = "";
   let inToken = false;
@@ -88,13 +99,14 @@ export function parseArgs(
   };
   const endWord = () => {
     if (inToken) {
-      tokens.push({ type: "word", text: current });
+      push({ type: "word", text: current }, wordStart, pos);
       current = "";
       inToken = false;
     }
   };
   for (let i = 0; i < line.length; i++) {
     const char = line.charAt(i);
+    pos = i;
 
     if (quote === "'") {
       if (char === "'") quote = "";
@@ -153,10 +165,8 @@ export function parseArgs(
       endWord();
       // || and && are single operators, not two | or two &.
       const doubled = char !== ";" && line.charAt(i + 1) === char;
-      tokens.push({
-        type: "operator",
-        text: (doubled ? char + char : char) as Operator,
-      });
+      const text = (doubled ? char + char : char) as Operator;
+      push({ type: "operator", text }, i, i + text.length);
       if (doubled) i++;
       continue;
     }
@@ -166,16 +176,15 @@ export function parseArgs(
       // A word that is exactly an unquoted 1 or 2 names the stream.
       const raw = inToken ? line.slice(wordStart, i) : "";
       const fd = raw === "1" || raw === "2" ? raw : "";
+      const start = fd ? wordStart : i;
       if (fd) {
         current = "";
         inToken = false;
       } else {
         endWord();
       }
-      tokens.push({
-        type: "operator",
-        text: `${fd}${append ? ">>" : ">"}` as Operator,
-      });
+      const text = `${fd}${append ? ">>" : ">"}` as Operator;
+      push({ type: "operator", text }, start, i + (append ? 2 : 1));
       if (append) i++;
       continue;
     }
@@ -184,6 +193,7 @@ export function parseArgs(
     startWord(i);
   }
 
+  pos = line.length;
   endWord();
   return tokens;
 }

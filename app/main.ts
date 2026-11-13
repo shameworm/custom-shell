@@ -10,8 +10,7 @@ import {
   findPathCompletions,
 } from "./utils/pathUtils";
 import { createCompleter } from "./utils/completer";
-import { parseArgs, ShellError } from "./utils/parseArgs";
-import { lookupVariable } from "./variables";
+import { ShellError } from "./utils/parseArgs";
 
 const rl: Interface = createInterface({
   input: process.stdin,
@@ -71,8 +70,10 @@ if (interactive) process.on("SIGINT", () => {});
 rl.on("SIGINT", () => {
   rl.write(null, { ctrl: true, name: "e" }); // move to the end of the line
   process.stdout.write("^C\n");
+  // Report finished jobs before clearing the line, which redraws the prompt.
+  for (const line of jobTable.reap()) console.log(line);
   rl.write(null, { ctrl: true, name: "u" }); // clear the line
-  prompt();
+  rl.prompt();
 });
 
 // Shows the prompt, first reporting any background jobs that have finished.
@@ -101,8 +102,7 @@ async function handleLine(line: string): Promise<void> {
   // Commands run with it in normal mode, so Ctrl-C sends them SIGINT.
   if (interactive) process.stdin.setRawMode(false);
   try {
-    const tokens = parseArgs(line, lookupVariable);
-    const status = await runCommandList(parseCommandList(tokens), line);
+    const status = await runCommandList(parseCommandList(line), line);
     // The terminal echoes ^C; like bash, end that line before the prompt.
     if (interactive && status === INTERRUPTED) process.stdout.write("\n");
   } catch (error) {
