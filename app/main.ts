@@ -48,6 +48,10 @@ const rl: Interface = createInterface({
 const arrowHistory = (rl as Interface & { history: string[] }).history;
 history.onAdd = (line) => arrowHistory.unshift(line);
 
+// HISTFILE names the file history is loaded from at startup.
+const historyFile = process.env.HISTFILE;
+if (historyFile) history.loadFile(historyFile);
+
 // Shows the prompt, first reporting any background jobs that have finished.
 function prompt() {
   for (const line of jobTable.reap()) console.log(line);

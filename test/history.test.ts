@@ -249,4 +249,25 @@ describe("history files", () => {
       expect(fs.readFileSync(file, "utf8")).toBe("one\n");
     });
   });
+
+  describe("History.loadFile", () => {
+    test("loads the file's lines into the history", () => {
+      fs.writeFileSync(file, "echo hello\necho world\n\n");
+      h.loadFile(file);
+      expect(h.list()).toEqual(["echo hello", "echo world"]);
+    });
+
+    test("treats loaded lines as already saved", () => {
+      fs.writeFileSync(file, "echo hello\n");
+      h.loadFile(file);
+      h.add("echo new");
+      h.appendFile(file);
+      expect(fs.readFileSync(file, "utf8")).toBe("echo hello\necho new\n");
+    });
+
+    test("does nothing when the file does not exist", () => {
+      h.loadFile(path.join(tmpDir, "nope"));
+      expect(h.list()).toEqual([]);
+    });
+  });
 });
