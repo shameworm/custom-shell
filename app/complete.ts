@@ -9,6 +9,7 @@ export const completionSpecs = new Map<string, string>();
 // The `complete` builtin: manages programmable completion specs.
 //   complete -C <script> <name>...  register a completer script for each name
 //   complete -p [name...]           print specs (all of them when no name given)
+//   complete -r [name...]           remove specs (all of them when no name given)
 //   complete                        same as `complete -p`
 export function complete(args: string[], out: Writer, err: Writer): void {
   const [flag = "-p", ...rest] = args;
@@ -32,6 +33,16 @@ export function complete(args: string[], out: Writer, err: Writer): void {
           err(`complete: ${name}: no completion specification`);
         } else {
           out(`complete -C ${shellQuote(script)} ${name}`);
+        }
+      }
+      return;
+    }
+
+    case "-r": {
+      if (rest.length === 0) completionSpecs.clear();
+      for (const name of rest) {
+        if (!completionSpecs.delete(name)) {
+          err(`complete: ${name}: no completion specification`);
         }
       }
       return;
