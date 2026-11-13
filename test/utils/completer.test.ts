@@ -313,4 +313,12 @@ describe("completer with a registered completer script", () => {
     expect(complete("git ")).toEqual([[], ""]);
     expect(listed).toEqual([["add", "commit", "push"]]);
   });
+
+  test("completes to the longest common prefix of script candidates", () => {
+    scripts.git = () => ["checkout", "cherry-pick"];
+    complete = makeCompleter([]);
+    expect(complete("git c")).toEqual([["che"], "c"]);
+    expect(bells).toBe(0);
+    expect(listed).toEqual([]);
+  });
 });
