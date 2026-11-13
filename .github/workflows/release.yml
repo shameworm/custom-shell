@@ -56,7 +56,9 @@ jobs:
           codesign --verify --strict --verbose=2 dist/custom-shell
       - name: Package
         run: |
-          name=custom-shell-$TAG-${{ matrix.target }}
+          # No version in the name, so releases/latest/download/<name> always
+          # points at the newest build (install.sh relies on that).
+          name=custom-shell-${{ matrix.target }}
           tar -czf "$name.tar.gz" -C dist custom-shell
           echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v4
