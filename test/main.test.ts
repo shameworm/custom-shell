@@ -85,3 +85,26 @@ describe("HISTFILE", () => {
     expect(fs.readdirSync(tmpDir)).toEqual([]);
   });
 });
+
+describe("parameter expansion", () => {
+  test("declared variables expand in commands; unset ones expand to nothing", () => {
+    const { stdout } = shell(
+      "declare greeting=hello\necho ${greeting}world\necho ${missing}world\n",
+    );
+    expect(stdout).toContain("helloworld\n");
+    expect(stdout).toContain("$ world\n");
+  });
+
+  test("expanded values reach external programs as separate arguments", () => {
+    const { stdout } = shell(
+      "declare a=one\ndeclare b=two\nprintf '[%s]' $a $b\n",
+    );
+    expect(stdout).toContain("[one][two]");
+  });
+
+  test("a bad substitution is reported and the shell keeps running", () => {
+    const { stdout, stderr } = shell("echo ${1x}\necho after\n");
+    expect(stderr).toContain("${1x}: bad substitution");
+    expect(stdout).toContain("after\n");
+  });
+});
