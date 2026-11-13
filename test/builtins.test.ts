@@ -33,6 +33,7 @@ describe("builtins", () => {
     expect(Object.keys(builtins).sort()).toEqual([
       "cd",
       "clear",
+      "complete",
       "echo",
       "exit",
       "pwd",

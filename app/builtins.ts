@@ -13,6 +13,8 @@ export const builtins: Record<string, Builtin> = {
   echo: (args, out = defaultOut) => out(args.join(" ")),
   pwd: (_args, out = defaultOut) => out(process.cwd()),
   cd: (args, _out, err = defaultErr) => changeDirectory(args, err),
+  // Programmable completion; flags are added in later commits.
+  complete: () => {},
   type: ([target], out = defaultOut, err = defaultErr) => {
     if (!target) {
       return;
