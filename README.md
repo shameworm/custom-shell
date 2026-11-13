@@ -2,7 +2,7 @@
 
 A POSIX-style interactive shell written in TypeScript and running on [Bun](https://bun.com).
 
-It reads commands at a `$ ` prompt, runs builtins and external programs from your `PATH`, handles shell-style quoting, redirects output and errors to files, and has tab completion.
+It reads commands at a `$ ` prompt, runs builtins and external programs from your `PATH`, handles shell-style quoting, pipelines, redirection, background jobs, and tab completion.
 
 ```console
 $ echo 'hello   world' "and \"quotes\""
@@ -54,6 +54,24 @@ Any other command is looked up in `PATH` and run as an external program. Unknown
 | `2>>` | Append stderr to a file |
 
 Target files are created when they don't exist. Redirection works for builtins and external programs alike, and stdout and stderr can be redirected in the same command.
+
+### Pipelines
+
+Separate commands with `|` to connect each one's output to the next one's input. Any number of commands can be chained, and builtins can appear anywhere:
+
+```console
+$ cat /tmp/foo/file | head -n 3 | wc
+       3       3      10
+$ echo apple-orange | wc
+       1       1      13
+$ ls | type exit
+exit is a shell builtin
+```
+
+- All commands run at the same time, connected by real OS pipes, so `tail -f log | grep error` streams, and `yes | head -1` ends because `yes` gets `SIGPIPE`.
+- The shell waits for every command to finish before showing the prompt.
+- Each command can have its own redirects: `cat in.txt | sort > out.txt`.
+- A builtin ignores its input. Whatever feeds it is cut off, which is why `ls` prints nothing above.
 
 ### Background jobs
 
@@ -143,9 +161,11 @@ app/
 ├── builtins.ts          # builtin commands
 ├── complete.ts          # complete builtin and completer-script runner
 ├── jobs.ts              # background job table and jobs output
+├── pipeline.ts          # runs | pipelines of builtins and external commands
 └── utils/
     ├── parseArgs.ts     # tokenizer: quotes and backslash escapes
     ├── redirect.ts      # parses >, >>, 1>, 1>>, 2>, 2>>
+    ├── osPipe.ts        # creates real OS pipes (via a named pipe)
     ├── pathUtils.ts     # PATH lookup, executable search, cd
     └── completer.ts     # tab completion: commands, scripts, files, directories
 test/                    # unit tests (bun test)
