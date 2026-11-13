@@ -9,10 +9,12 @@ export interface Job {
 
 export class JobTable {
   private jobs: Job[] = [];
-  private nextId = 1;
 
+  // Numbers are recycled: a new job gets one more than the highest number
+  // still in the table, or 1 when the table is empty.
   add(pid: number, command: string): Job {
-    const job: Job = { id: this.nextId++, pid, command, status: "Running" };
+    const id = Math.max(0, ...this.jobs.map((j) => j.id)) + 1;
+    const job: Job = { id, pid, command, status: "Running" };
     this.jobs.push(job);
     return job;
   }
