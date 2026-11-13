@@ -1,6 +1,11 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { declareBuiltin, isIdentifier, shellVariables } from "../app/variables";
+import {
+  declareBuiltin,
+  isIdentifier,
+  lookupVariable,
+  shellVariables,
+} from "../app/variables";
 
 let out: string[];
 let err: string[];
@@ -64,10 +69,14 @@ describe("declare NAME=VALUE", () => {
     expect(out).toEqual(['declare -- v="say \\"hi\\" \\\\ \\$HOME \\`x\\`"']);
   });
 
-  test("-p with no names lists every variable", () => {
-    run("a=1", "b=2");
+  test("-p with no names lists every variable, sorted by name", () => {
+    run("zz_shell_b=2", "zz_shell_a=1");
     run("-p");
-    expect(out).toEqual(['declare -- a="1"', 'declare -- b="2"']);
+    expect(out.filter((l) => l.includes("zz_shell_"))).toEqual([
+      'declare -- zz_shell_a="1"',
+      'declare -- zz_shell_b="2"',
+    ]);
+    expect(out.some((l) => l.startsWith("declare -x PATH="))).toBe(true);
   });
 });
 
@@ -105,5 +114,40 @@ describe("identifier validation", () => {
   test("an invalid name without = is reported too", () => {
     run("9lives");
     expect(err).toEqual(["declare: `9lives': not a valid identifier"]);
+  });
+});
+
+describe("environment variables", () => {
+  const NAME = "CUSTOM_SHELL_TEST_ENV";
+
+  beforeEach(() => {
+    process.env[NAME] = "from-env";
+  });
+
+  afterEach(() => {
+    delete process.env[NAME];
+  });
+
+  test("are visible to lookups", () => {
+    expect(lookupVariable(NAME)).toBe("from-env");
+  });
+
+  test("a shell variable lookup falls back to the environment, not the reverse", () => {
+    run("only_shell=1");
+    expect(lookupVariable("only_shell")).toBe("1");
+    expect(process.env.only_shell).toBeUndefined();
+  });
+
+  test("declare -p shows them as exported", () => {
+    run("-p", NAME);
+    expect(out).toEqual([`declare -x ${NAME}="from-env"`]);
+  });
+
+  test("declare updates the environment so child processes see it", () => {
+    run(`${NAME}=changed`);
+    expect(process.env[NAME]).toBe("changed");
+    expect(shellVariables.has(NAME)).toBe(false);
+    run("-p", NAME);
+    expect(out).toEqual([`declare -x ${NAME}="changed"`]);
   });
 });

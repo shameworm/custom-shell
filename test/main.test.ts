@@ -107,6 +107,22 @@ describe("parameter expansion", () => {
     expect(stderr).toContain("${1x}: bad substitution");
     expect(stdout).toContain("after\n");
   });
+
+  test("environment variables expand, and declare changes what children see", () => {
+    const { stdout } = shell(
+      "echo $CUSTOM_SHELL_E2E\ndeclare CUSTOM_SHELL_E2E=new\nsh -c 'echo child:$CUSTOM_SHELL_E2E'\n",
+      { CUSTOM_SHELL_E2E: "old" },
+    );
+    expect(stdout).toContain("old\n");
+    expect(stdout).toContain("child:new\n");
+  });
+
+  test("declared shell variables are not passed to children", () => {
+    const { stdout } = shell(
+      "declare not_exported=x\nsh -c 'echo child:[$not_exported]'\n",
+    );
+    expect(stdout).toContain("child:[]\n");
+  });
 });
 
 describe("operators", () => {

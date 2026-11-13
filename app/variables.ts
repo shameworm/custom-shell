@@ -1,9 +1,34 @@
-/** Shell variables, by name. */
+/** Shell variables, by name. Environment variables live in process.env. */
 export const shellVariables = new Map<string, string>();
 
+// A variable's value: a shell variable, or else an environment variable,
+// which bash treats as an exported shell variable.
+export function lookupVariable(name: string): string | undefined {
+  return shellVariables.get(name) ?? process.env[name];
+}
+
+// Sets a variable. One that comes from the environment stays exported, as
+// in bash: the new value is what child processes see (and, for PATH, where
+// commands are looked up).
+export function setVariable(name: string, value: string): void {
+  if (name in process.env) process.env[name] = value;
+  else shellVariables.set(name, value);
+}
+
+// One line of `declare -p` output, or undefined if the variable isn't set.
+// Exported (environment) variables are marked -x, others --.
+function describeVariable(name: string): string | undefined {
+  const shell = shellVariables.get(name);
+  if (shell !== undefined) return `declare -- ${name}="${escapeValue(shell)}"`;
+  const env = process.env[name];
+  if (env !== undefined) return `declare -x ${name}="${escapeValue(env)}"`;
+  return undefined;
+}
+
 // The `declare` builtin:
-//   declare NAME=VALUE...  set shell variables
-//   declare -p [NAME...]   describe each variable (all of them with no names)
+//   declare NAME=VALUE...  set variables
+//   declare -p [NAME...]   describe each variable (all of them, sorted by
+//                          name, with no names)
 export function declareBuiltin(
   args: string[],
   out: (line: string) => void,
@@ -12,11 +37,16 @@ export function declareBuiltin(
   const [flag, ...rest] = args;
 
   if (flag === "-p") {
-    const names = rest.length > 0 ? rest : [...shellVariables.keys()];
+    const names =
+      rest.length > 0
+        ? rest
+        : [...new Set([...shellVariables.keys(), ...Object.keys(process.env)])]
+            .filter(isIdentifier)
+            .sort();
     for (const name of names) {
-      const value = shellVariables.get(name);
-      if (value === undefined) err(`declare: ${name}: not found`);
-      else out(`declare -- ${name}="${escapeValue(value)}"`);
+      const line = describeVariable(name);
+      if (line === undefined) err(`declare: ${name}: not found`);
+      else out(line);
     }
     return;
   }
@@ -28,7 +58,7 @@ export function declareBuiltin(
       err(`declare: \`${assignment}': not a valid identifier`);
       continue;
     }
-    if (eq !== -1) shellVariables.set(name, assignment.slice(eq + 1));
+    if (eq !== -1) setVariable(name, assignment.slice(eq + 1));
   }
 }
 
