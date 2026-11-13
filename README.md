@@ -34,6 +34,7 @@ $ xyz_
 | `complete` | Manage programmable completion (see below) |
 | `jobs` | List background jobs (see below) |
 | `history [n]` | List previously run commands, or only the last `n` |
+| `history -r/-w/-a <file>` | Read history from a file, write it to one, or append new entries |
 | `exit` | Exit the shell |
 
 Any other command is looked up in `PATH` and run as an external program. Unknown commands print `<name>: command not found`.
@@ -112,6 +113,20 @@ $ history
 $ history 2
     3  history
     4  history 2
+```
+
+History can be saved to and loaded from files:
+
+| Command | Effect |
+| --- | --- |
+| `history -r <file>` | Append the file's commands to the history |
+| `history -w <file>` | Write the whole history to the file, replacing it |
+| `history -a <file>` | Append the commands not saved yet (by `-a` or `-w`) to the file |
+
+If `HISTFILE` is set, the shell loads that file on startup, and on exit appends the commands from this session. Lines another session saved to the file in the meantime are kept.
+
+```bash
+HISTFILE=~/.custom_shell_history bun run dev
 ```
 
 Press <kbd>↑</kbd> and <kbd>↓</kbd> to step through the same entries, and <kbd>Enter</kbd> to run the one shown. If you've typed something first, the arrows only step through entries that start with it.
