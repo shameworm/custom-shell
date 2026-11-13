@@ -132,3 +132,17 @@ describe("completer filename completion", () => {
     expect(complete("cd proj")).toEqual([["project/"], "proj"]);
   });
 });
+
+describe("completer filename edge cases", () => {
+  test("rings the bell and leaves input unchanged for a missing entry", () => {
+    complete = makeCompleter([], [file("readme.txt")]);
+    expect(complete("cat absent_filenam")).toEqual([[], "absent_filenam"]);
+    expect(bells).toBe(1);
+  });
+
+  test("rings the bell when there are no entries at all", () => {
+    complete = makeCompleter([], []);
+    expect(complete("cat x")).toEqual([[], "x"]);
+    expect(bells).toBe(1);
+  });
+});
