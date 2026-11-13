@@ -16,6 +16,7 @@ function makeCompleter(commands: string[], paths: Candidate[] = []) {
 }
 
 const file = (value: string): Candidate => ({ value, suffix: " " });
+const dir = (value: string): Candidate => ({ value, suffix: "/" });
 
 let complete: ReturnType<typeof createCompleter>;
 
@@ -124,5 +125,10 @@ describe("completer filename completion", () => {
       ["path/to/file.txt "],
       "path/to/f",
     ]);
+  });
+
+  test("completes a directory with a trailing slash and no space", () => {
+    complete = makeCompleter([], [dir("project"), file("readme.txt")]);
+    expect(complete("cd proj")).toEqual([["project/"], "proj"]);
   });
 });

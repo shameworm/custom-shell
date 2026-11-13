@@ -218,6 +218,29 @@ describe("findPathCompletions", () => {
     ]);
   });
 
+  test("completes directories with a trailing slash", () => {
+    fs.mkdirSync(path.join(tmpDir, "project"));
+    process.chdir(tmpDir);
+
+    expect(findPathCompletions("proj")).toEqual([
+      { value: "project", suffix: "/" },
+    ]);
+  });
+
+  test("treats a symlink to a directory as a directory", () => {
+    fs.mkdirSync(path.join(tmpDir, "real"));
+    fs.symlinkSync(path.join(tmpDir, "real"), path.join(tmpDir, "linked"));
+    fs.symlinkSync(path.join(tmpDir, "gone"), path.join(tmpDir, "broken"));
+    process.chdir(tmpDir);
+
+    expect(findPathCompletions("linked")).toEqual([
+      { value: "linked", suffix: "/" },
+    ]);
+    expect(findPathCompletions("broken")).toEqual([
+      { value: "broken", suffix: " " },
+    ]);
+  });
+
   test("lists everything in a directory when the prefix is empty", () => {
     fs.mkdirSync(path.join(tmpDir, "sub"));
     fs.writeFileSync(path.join(tmpDir, "sub", "a.txt"), "");
