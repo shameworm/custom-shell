@@ -4,6 +4,8 @@ node_modules
 # output
 out
 dist
+# temporary files bun build --compile can leave behind
+.*.bun-build
 *.tgz
 *.txt
 
