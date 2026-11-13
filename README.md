@@ -31,6 +31,7 @@ $ xyz_
 | `cd [dir]` | Change directory; supports absolute and relative paths, `~` and `~/...` |
 | `type <name>` | Say whether a name is a builtin or the path of an executable |
 | `clear` | Clear the screen |
+| `complete` | Manage programmable completion (see below) |
 | `exit` | Exit the shell |
 
 Any other command is looked up in `PATH` and run as an external program. Unknown commands print `<name>: command not found`.
@@ -58,7 +59,7 @@ Target files are created when they don't exist. Redirection works for builtins a
 Press <kbd>Tab</kbd> to complete the word before the cursor:
 
 - the **first word** is completed against builtins and executables in `PATH`;
-- **any later word** is completed against files and directories, including nested paths like `src/utils/pa` and absolute paths. Dotfiles are only offered when the word starts with `.`.
+- **any later word** is completed by the command's [completer script](#programmable-completion) if one is registered, and otherwise against files and directories, including nested paths like `src/utils/pa` and absolute paths. Dotfiles are only offered when the word starts with `.`.
 
 What happens depends on how many entries match:
 
@@ -74,6 +75,32 @@ $ stat <TAB><TAB>
 bar.txt  foo/
 $ stat
 ```
+
+### Programmable completion
+
+`complete -C` registers a script that supplies completions for a command, as in bash:
+
+```console
+$ complete -C /path/to/git-completer git
+$ complete -p git
+complete -C '/path/to/git-completer' git
+$ git che<TAB>
+$ git checkout
+$ complete -r git
+```
+
+| Usage | Effect |
+| --- | --- |
+| `complete -C <script> <name>...` | Register a completer script for each name |
+| `complete -p [name...]` | Print the registered specs (all of them if no name is given) |
+| `complete -r [name...]` | Remove specs (all of them if no name is given) |
+
+When you press <kbd>Tab</kbd> on an argument of a registered command, the script is run with:
+
+- `$1`: the command name, `$2`: the word being completed, `$3`: the word before it;
+- `COMP_LINE`: the whole input line, and `COMP_POINT`: the cursor's byte offset in it.
+
+Each line it prints is a candidate, and the usual rules apply: one candidate completes with a trailing space, several complete to their common prefix or are listed on a second <kbd>Tab</kbd>, and no output rings the bell. A script that can't be started, or runs for more than 5 seconds, gives no candidates.
 
 ## Getting started
 
@@ -91,11 +118,12 @@ bun test           # run the test suite
 app/
 ├── main.ts              # REPL loop: prompt, parse, redirect, dispatch
 ├── builtins.ts          # builtin commands
+├── complete.ts          # complete builtin and completer-script runner
 └── utils/
     ├── parseArgs.ts     # tokenizer: quotes and backslash escapes
     ├── redirect.ts      # parses >, >>, 1>, 1>>, 2>, 2>>
     ├── pathUtils.ts     # PATH lookup, executable search, cd
-    └── completer.ts     # tab completion: commands, files, directories
+    └── completer.ts     # tab completion: commands, scripts, files, directories
 test/                    # unit tests (bun test)
 ```
 
