@@ -195,7 +195,7 @@ describe("findPathCompletions", () => {
     process.chdir(tmpDir);
 
     expect(findPathCompletions("re")).toEqual([
-      { value: "readme.txt", suffix: " " },
+      { value: "readme.txt", suffix: " ", label: "readme.txt" },
     ]);
   });
 
@@ -214,7 +214,7 @@ describe("findPathCompletions", () => {
     process.chdir(tmpDir);
 
     expect(findPathCompletions("path/to/f")).toEqual([
-      { value: "path/to/file.txt", suffix: " " },
+      { value: "path/to/file.txt", suffix: " ", label: "file.txt" },
     ]);
   });
 
@@ -223,7 +223,7 @@ describe("findPathCompletions", () => {
     process.chdir(tmpDir);
 
     expect(findPathCompletions("proj")).toEqual([
-      { value: "project", suffix: "/" },
+      { value: "project", suffix: "/", label: "project/" },
     ]);
   });
 
@@ -234,10 +234,10 @@ describe("findPathCompletions", () => {
     process.chdir(tmpDir);
 
     expect(findPathCompletions("linked")).toEqual([
-      { value: "linked", suffix: "/" },
+      { value: "linked", suffix: "/", label: "linked/" },
     ]);
     expect(findPathCompletions("broken")).toEqual([
-      { value: "broken", suffix: " " },
+      { value: "broken", suffix: " ", label: "broken" },
     ]);
   });
 
@@ -258,7 +258,7 @@ describe("findPathCompletions", () => {
     fs.writeFileSync(path.join(tmpDir, "abs.txt"), "");
 
     expect(findPathCompletions(path.join(tmpDir, "ab"))).toEqual([
-      { value: path.join(tmpDir, "abs.txt"), suffix: " " },
+      { value: path.join(tmpDir, "abs.txt"), suffix: " ", label: "abs.txt" },
     ]);
   });
 

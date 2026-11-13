@@ -15,8 +15,17 @@ function makeCompleter(commands: string[], paths: Candidate[] = []) {
   );
 }
 
-const file = (value: string): Candidate => ({ value, suffix: " " });
-const dir = (value: string): Candidate => ({ value, suffix: "/" });
+const basename = (value: string) => value.slice(value.lastIndexOf("/") + 1);
+const file = (value: string): Candidate => ({
+  value,
+  suffix: " ",
+  label: basename(value),
+});
+const dir = (value: string): Candidate => ({
+  value,
+  suffix: "/",
+  label: basename(value) + "/",
+});
 
 let complete: ReturnType<typeof createCompleter>;
 
@@ -144,5 +153,30 @@ describe("completer filename edge cases", () => {
     complete = makeCompleter([], []);
     expect(complete("cat x")).toEqual([[], "x"]);
     expect(bells).toBe(1);
+  });
+});
+
+describe("completer filename multiple matches", () => {
+  beforeEach(() => {
+    complete = makeCompleter([], [dir("foo"), file("bar.txt")]);
+  });
+
+  test("first <TAB> rings the bell and leaves input unchanged", () => {
+    expect(complete("stat ")).toEqual([[], ""]);
+    expect(bells).toBe(1);
+    expect(listed).toEqual([]);
+  });
+
+  test("second <TAB> lists names alphabetically, directories with a slash", () => {
+    complete("stat ");
+    complete("stat ");
+    expect(listed).toEqual([["bar.txt", "foo/"]]);
+  });
+
+  test("lists entry names, not the typed directory path", () => {
+    complete = makeCompleter([], [file("src/a.ts"), file("src/b.ts")]);
+    complete("cat src/");
+    complete("cat src/");
+    expect(listed).toEqual([["a.ts", "b.ts"]]);
   });
 });
