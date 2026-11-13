@@ -55,12 +55,25 @@ Target files are created when they don't exist. Redirection works for builtins a
 
 ### Tab completion
 
-Completion works on the command name (the first word), for both builtins and executables in `PATH`:
+Press <kbd>Tab</kbd> to complete the word before the cursor:
 
-- **One match**: completes the name and adds a trailing space.
-- **Several matches**: extends the input to their longest common prefix (`xyz_` → `xyz_foo`).
-- **Nothing more to add**: the first <kbd>Tab</kbd> rings the bell; a second <kbd>Tab</kbd> lists all matches alphabetically.
+- the **first word** is completed against builtins and executables in `PATH`;
+- **any later word** is completed against files and directories, including nested paths like `src/utils/pa` and absolute paths. Dotfiles are only offered when the word starts with `.`.
+
+What happens depends on how many entries match:
+
+- **One match**: it is completed, followed by a space, or by `/` for a directory so you can keep going into it.
+- **Several matches**: the word is extended to their longest common prefix (`xyz_` → `xyz_foo`).
+- **Nothing more to add**: the first <kbd>Tab</kbd> rings the bell; a second <kbd>Tab</kbd> lists the matches alphabetically, with directories shown as `name/`.
 - **No match**: rings the bell and leaves the input unchanged.
+
+```console
+$ cd proj<TAB>
+$ cd project/
+$ stat <TAB><TAB>
+bar.txt  foo/
+$ stat
+```
 
 ## Getting started
 
@@ -82,7 +95,7 @@ app/
     ├── parseArgs.ts     # tokenizer: quotes and backslash escapes
     ├── redirect.ts      # parses >, >>, 1>, 1>>, 2>, 2>>
     ├── pathUtils.ts     # PATH lookup, executable search, cd
-    └── completer.ts     # tab completion logic
+    └── completer.ts     # tab completion: commands, files, directories
 test/                    # unit tests (bun test)
 ```
 
