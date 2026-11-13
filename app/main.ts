@@ -4,6 +4,7 @@ import * as fs from "fs";
 
 import { builtins, type Writer } from "./builtins";
 import { runCompleter } from "./complete";
+import { history } from "./history";
 import { jobCommand, jobTable } from "./jobs";
 import { runPipeline, splitPipeline } from "./pipeline";
 import {
@@ -48,6 +49,9 @@ function prompt() {
 prompt();
 
 rl.on("line", (line: string) => {
+  // Recorded before running, so `history` lists itself.
+  history.add(line);
+
   const tokens = parseArgs(line);
   // A trailing & runs the command in the background.
   const background = tokens.at(-1) === "&";
